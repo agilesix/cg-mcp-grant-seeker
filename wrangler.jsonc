@@ -1,0 +1,27 @@
+{
+  // Cloudflare Workers config for the *remote* (hosted) MCP server.
+  // This is the artifact submitted to the Claude Connectors Directory and the
+  // OpenAI Apps SDK. The local stdio server (src/stdio.ts) does not use this.
+  //
+  // The remote Streamable-HTTP transport is implemented in src/worker.ts via
+  // Cloudflare's McpAgent (Durable Objects). It is a Phase-2 stub today — see
+  // docs/adr/002-hosting-and-distribution.md.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cg-mcp-grant-seeker",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+  },
+  // Durable Objects back the McpAgent session state for the remote transport.
+  // Uncomment when src/worker.ts is implemented in Phase 2.
+  // "durable_objects": {
+  //   "bindings": [{ "name": "MCP_OBJECT", "class_name": "GrantSeekerMcp" }]
+  // },
+  // "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GrantSeekerMcp"] }],
+  "vars": {
+    // Non-secret source registry overrides can go here. The federal API key is
+    // a SECRET — set it with `wrangler secret put FEDERAL_API_TOKEN`, never here.
+  },
+}

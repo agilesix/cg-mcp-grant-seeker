@@ -1,0 +1,55 @@
+{
+  "name": "@common-grants/mcp-grant-seeker",
+  "version": "0.1.0",
+  "description": "An MCP server that searches grant opportunities across CommonGrants-compliant APIs (federal, Pennsylvania, California, and any source you add)",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/stdio.ts",
+    "dev:worker": "wrangler dev",
+    "start": "tsx src/stdio.ts",
+    "deploy": "wrangler deploy",
+    "lint": "eslint . --fix",
+    "check:lint": "eslint .",
+    "format": "prettier --write .",
+    "check:format": "prettier --check .",
+    "check:types": "tsc --noEmit",
+    "checks": "pnpm run check:lint && pnpm run check:format && pnpm run check:types",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "wrangler:types": "wrangler types",
+    "ci": "pnpm run wrangler:types && pnpm run checks && pnpm run build && pnpm run test"
+  },
+  "dependencies": {
+    "@common-grants/sdk": "~0.5.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "jiti": "^2.4.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260522.1",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.4",
+    "eslint": "^10.4.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.58.2",
+    "vitest": "^4.1.4",
+    "wrangler": "^4.94.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@<5.0.6": "^5.0.6"
+    }
+  }
+}

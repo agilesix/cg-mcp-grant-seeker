@@ -1,0 +1,7 @@
+# Local secrets for `wrangler dev` (the remote Worker). Copy to `.dev.vars`.
+# For the stdio server, set the same variable in your shell or Claude Desktop
+# config `env` block instead.
+
+# Federal (Simpler.Grants.gov) API key. PA and CA need no auth.
+# Get one from https://simpler.grants.gov/ developer settings.
+FEDERAL_API_TOKEN=""
