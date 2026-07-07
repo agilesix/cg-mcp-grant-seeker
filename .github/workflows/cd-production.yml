@@ -1,0 +1,59 @@
+name: Production Deploy
+
+# Deploys the remote (Cloudflare Workers) MCP server. This becomes meaningful
+# once src/worker.ts is implemented (Phase 2). Until then it deploys the stub.
+#
+# Required repo/environment secrets:
+#   CLOUDFLARE_API_TOKEN   (Workers edit)
+#   CLOUDFLARE_ACCOUNT_ID
+#   FEDERAL_API_TOKEN      (server-side Simpler.Grants.gov key)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Defense in depth: re-run CI before deploying in case of direct push.
+      - name: Run CI
+        run: pnpm run ci
+
+      - name: Deploy Worker
+        run: pnpm run deploy
+
+      - name: Set FEDERAL_API_TOKEN
+        run: echo "${{ secrets.FEDERAL_API_TOKEN }}" | pnpm exec wrangler secret put FEDERAL_API_TOKEN
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## Production deployment"
+            echo ""
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Actor | @${{ github.actor }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
