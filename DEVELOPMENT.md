@@ -142,7 +142,7 @@ The endpoint speaks Streamable HTTP, so point any HTTP MCP client at
 
 - **MCP Inspector (browser):** `pnpm dlx @modelcontextprotocol/inspector`, choose
   transport **Streamable HTTP**, URL `http://127.0.0.1:8787/mcp`, Connect.
-- **Claude Desktop:** Claude connects to *stdio* servers from its config, so
+- **Claude Desktop:** Claude connects to _stdio_ servers from its config, so
   bridge to the HTTP server with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote).
   For a local (http) URL you must pass `--allow-http`:
 
@@ -151,9 +151,9 @@ The endpoint speaks Streamable HTTP, so point any HTTP MCP client at
     "mcpServers": {
       "commongrants-remote": {
         "command": "npx",
-        "args": ["-y", "mcp-remote", "http://127.0.0.1:8787/mcp", "--allow-http"]
-      }
-    }
+        "args": ["-y", "mcp-remote", "http://127.0.0.1:8787/mcp", "--allow-http"],
+      },
+    },
   }
   ```
 
@@ -163,7 +163,7 @@ The endpoint speaks Streamable HTTP, so point any HTTP MCP client at
 ### Preview deploy (test a real hosted URL before production)
 
 Cloudflare **versions** let you upload a build and get a throwaway preview URL
-*without* shifting production traffic — ideal for testing the marketplace path
+_without_ shifting production traffic — ideal for testing the marketplace path
 end-to-end before committing.
 
 ```bash
