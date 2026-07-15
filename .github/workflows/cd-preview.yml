@@ -1,0 +1,96 @@
+name: CD - Preview
+
+# Uploads a preview version of the Worker for each PR and comments a stable
+# preview URL (alias `pr-N`). Preview versions receive 0% production traffic —
+# this never touches the live deployment. Production deploys happen separately
+# on merge to main (cd-production.yml).
+#
+# Note: PRs from forks don't receive repo secrets (GitHub security), so the
+# upload step is skipped for them via the `if` on the job.
+on:
+  pull_request:
+
+concurrency:
+  group: deploy-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    name: Upload preview version
+    # Only same-repo PRs have access to the Cloudflare secrets.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.HEAD_SHA }}
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Full gate before publishing a preview so we never upload broken code.
+      - run: pnpm run ci
+
+      - name: Upload Worker version (preview)
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Stream wrangler's output to the log via tee (so failures stay
+          # visible) while capturing it to parse the stable alias URL. pipefail
+          # makes a wrangler failure fail the step instead of being swallowed.
+          set -o pipefail
+          pnpm exec wrangler versions upload \
+            --preview-alias "pr-${PR_NUMBER}" \
+            --message "PR #${PR_NUMBER} @ ${HEAD_SHA}" 2>&1 | tee upload.log
+          url=$(grep -E 'Version Preview Alias URL:' upload.log \
+            | sed -E 's/.*URL:[[:space:]]*//' \
+            | head -n1 || true)
+          if [ -z "$url" ]; then
+            echo "::warning::Could not extract preview URL from wrangler output"
+          fi
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URL on PR
+        if: steps.deploy.outputs.url != ''
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          number: ${{ env.PR_NUMBER }}
+          header: cloudflare-preview
+          message: |
+            ### Cloudflare preview — PR #${{ env.PR_NUMBER }}
+
+            MCP endpoint: **${{ steps.deploy.outputs.url }}/mcp**
+
+            Connect Claude Desktop (via `mcp-remote`) or the MCP Inspector:
+
+            ```jsonc
+            {
+              "mcpServers": {
+                "commongrants-preview": {
+                  "command": "npx",
+                  "args": ["-y", "mcp-remote", "${{ steps.deploy.outputs.url }}/mcp"]
+                }
+              }
+            }
+            ```
+
+            Stable for the life of the PR (alias `pr-${{ env.PR_NUMBER }}`). PA
+            and CA work without a key; the federal source uses whatever
+            `FEDERAL_API_TOKEN` secret is set on the Worker.
+
+            _Last updated: commit `${{ env.HEAD_SHA }}`_
