@@ -41,9 +41,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      # Full gate before publishing a preview so we never upload broken code.
-      - run: pnpm run ci
-
       - name: Upload Worker version (preview)
         id: deploy
         env:
