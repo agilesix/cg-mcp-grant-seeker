@@ -114,17 +114,76 @@ pnpm run lint            # eslint . --fix
 pnpm run format          # prettier --write .
 ```
 
-## Deployment (remote server)
+## The remote server (Cloudflare Workers)
 
-The remote (Cloudflare Workers) MCP server — the artifact submitted to the
-Claude and OpenAI marketplaces — is **Phase 2** and not yet implemented. See
-[`docs/adr/002-hosting-and-distribution.md`](docs/adr/002-hosting-and-distribution.md)
-for the plan and [`src/worker.ts`](src/worker.ts) for the stub. Once built,
-deploy happens via GitHub Actions on push to `main`, or manually:
+The remote server — the artifact submitted to the Claude and OpenAI
+marketplaces — lives in [`src/worker.ts`](src/worker.ts). It serves the same
+`createServer()` core over the MCP SDK's Web-standard Streamable HTTP transport,
+run **statelessly** (no Durable Object). See
+[`docs/adr/002-hosting-and-distribution.md`](docs/adr/002-hosting-and-distribution.md).
+
+### Run it locally
 
 ```bash
-pnpm run deploy          # wrangler deploy
+cp .dev.vars.example .dev.vars   # optional: add a FEDERAL_API_TOKEN for federal
+pnpm run dev:worker              # wrangler dev on http://127.0.0.1:8787
 ```
 
-Required Cloudflare secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
-and `FEDERAL_API_TOKEN` (set via `wrangler secret put`).
+The MCP endpoint is `POST /mcp`. Quick check that it's alive:
+
+```bash
+curl http://127.0.0.1:8787/health
+```
+
+### Test it with an MCP client
+
+The endpoint speaks Streamable HTTP, so point any HTTP MCP client at
+`http://127.0.0.1:8787/mcp`:
+
+- **MCP Inspector (browser):** `pnpm dlx @modelcontextprotocol/inspector`, choose
+  transport **Streamable HTTP**, URL `http://127.0.0.1:8787/mcp`, Connect.
+- **Claude Desktop:** Claude connects to _stdio_ servers from its config, so
+  bridge to the HTTP server with [`mcp-remote`](https://www.npmjs.com/package/mcp-remote).
+  For a local (http) URL you must pass `--allow-http`:
+
+  ```jsonc
+  {
+    "mcpServers": {
+      "commongrants-remote": {
+        "command": "npx",
+        "args": ["-y", "mcp-remote", "http://127.0.0.1:8787/mcp", "--allow-http"],
+      },
+    },
+  }
+  ```
+
+  Against a deployed `https://` URL, drop `--allow-http`. Restart Claude Desktop
+  fully after editing.
+
+### Preview deploy (test a real hosted URL before production)
+
+Cloudflare **versions** let you upload a build and get a throwaway preview URL
+_without_ shifting production traffic — ideal for testing the marketplace path
+end-to-end before committing.
+
+```bash
+pnpm exec wrangler login                 # once (interactive)
+pnpm exec wrangler versions upload       # prints a preview URL:
+                                         #   https://<version>-cg-mcp-grant-seeker.<subdomain>.workers.dev
+```
+
+Point Claude Desktop (via `mcp-remote`, no `--allow-http`) or the Inspector at
+`<preview-url>/mcp` and exercise it. When satisfied, promote it:
+
+```bash
+pnpm exec wrangler versions deploy       # promote the version to production
+```
+
+> Set the federal key on the deployed Worker with
+> `pnpm exec wrangler secret put FEDERAL_API_TOKEN`. PA and CA need no secret.
+
+### Production deploy
+
+Handled by `.github/workflows/cd-production.yml` on push to `main` (and
+`workflow_dispatch`), or manually with `pnpm run deploy`. Required repo secrets:
+`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `FEDERAL_API_TOKEN`.
