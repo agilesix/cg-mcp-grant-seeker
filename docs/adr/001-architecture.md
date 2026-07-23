@@ -26,12 +26,13 @@ which require a hosted server — see ADR 002).
    Streamable HTTP on Cloudflare Workers. This mirrors the api-ca/api-pa
    convention where only one or two files are host-aware.
 
-2. **The SDK sits behind an `ICommonGrantsClient` interface.** The server depends
-   on this interface, not on `@common-grants/sdk` directly, so SDK upgrades are
-   isolated to `src/core/client.ts` and we have a seam to add retries, caching,
-   or pagination helpers later without touching tools. Domain types
-   (`Opportunity`, `SearchResult`, `OpportunityStatus`) are **derived** from the
-   installed SDK via `Awaited<ReturnType<...>>` so they never drift.
+2. **SDK network access sits behind an `ICommonGrantsClient` interface.** The
+   server depends on this interface for API calls, so client upgrades and future
+   retries, caching, or pagination helpers stay isolated to `src/core/client.ts`.
+   The parsing layer deliberately reuses SDK schemas and extensions for runtime
+   validation. Domain types (`Opportunity`, `SearchResult`,
+   `OpportunityStatus`) are **derived** from the installed SDK via
+   `Awaited<ReturnType<...>>` so they never drift.
 
 3. **A data-driven source registry.** Sources are plain config
    (`SourceConfig[]`), not code. Adding a source — built-in or user-supplied —

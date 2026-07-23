@@ -1,5 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { ApplicantTypeOptionsEnum } from '@common-grants/sdk/schemas';
 import { z } from 'zod';
+import { catalogFieldsValue, catalogOutputSchema } from './catalog-fields.js';
 import { formatOpportunityDetail, formatOpportunitySummary } from './format.js';
 import type { ICommonGrantsClient, Opportunity, SearchParams } from './types.js';
 
@@ -45,6 +47,12 @@ const eventSchema = z
   ])
   .nullable();
 
+const applicantTypeSchema = z.object({
+  value: ApplicantTypeOptionsEnum,
+  customValue: z.string().nullable(),
+  description: z.string().nullable(),
+});
+
 const opportunitySummarySchema = {
   source: z.object(sourceSchema),
   id: z.string(),
@@ -59,6 +67,9 @@ const opportunityDetailSchema = {
   description: z.string().nullable(),
   minAward: moneySchema,
   postDate: eventSchema,
+  originalSourceUrl: z.string().url().nullable(),
+  acceptedApplicantTypes: z.array(applicantTypeSchema).nullable(),
+  ...catalogOutputSchema,
 };
 
 const successfulSearchSchema = z.object({
@@ -183,6 +194,14 @@ function opportunityDetail(
     description: opportunity.description ?? null,
     minAward: moneyValue(opportunity.funding?.minAwardAmount),
     postDate: eventValue(opportunity.keyDates?.postDate),
+    originalSourceUrl: opportunity.source ?? null,
+    acceptedApplicantTypes:
+      opportunity.acceptedApplicantTypes?.map(({ value, customValue, description }) => ({
+        value,
+        customValue: customValue ?? null,
+        description: description ?? null,
+      })) ?? null,
+    ...catalogFieldsValue(opportunity),
   };
 }
 
@@ -322,8 +341,12 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
     'get_opportunity',
     {
       title: 'Get grant opportunity',
-      description:
-        'Get selected normalized details for a specific grant opportunity by ID from one source.',
+      description: [
+        'Get normalized details for a specific grant opportunity by ID from one source.',
+        'Includes core fields plus reusable CommonGrants catalog fields for agency, contact,',
+        'additional information, and eligibility. Treat null as unknown or unavailable, not',
+        'as a negative answer. Warnings identify malformed catalog data.',
+      ].join(' '),
       inputSchema: {
         id: z.string().describe('The opportunity ID'),
         source: sourceEnum.describe('Which source the opportunity belongs to'),

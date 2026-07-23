@@ -248,6 +248,42 @@ describe('MCP tool result contracts', () => {
     const detailedOpportunity = {
       ...opportunity,
       description: completeDescription,
+      source: 'https://example.gov/grants/opp-1',
+      acceptedApplicantTypes: [
+        {
+          value: 'custom',
+          customValue: 'California public agency',
+          description: 'A state or local public agency in California',
+        },
+        {
+          value: 'non_profit_with_501c3',
+        },
+      ],
+      customFields: {
+        agency: {
+          name: 'agency',
+          fieldType: 'object',
+          value: { code: 'EDD', name: 'Employment Development Department', parentCode: null },
+        },
+        contactInfo: {
+          name: 'contactInfo',
+          fieldType: 'object',
+          value: { name: 'Grant Office', email: 'grants@example.gov', phone: null },
+        },
+        additionalInfo: {
+          name: 'additionalInfo',
+          fieldType: 'object',
+          value: { url: 'https://example.gov/grants/opp-1/details', description: null },
+        },
+        eligibilityCriteria: {
+          name: 'eligibilityCriteria',
+          fieldType: 'object',
+          value: {
+            beneficiaryTypes: [{ code: 'EL020000', name: 'Youth' }],
+            details: 'Applicants must serve rural communities.',
+          },
+        },
+      },
     } as Opportunity;
     const client = await connect([
       fakeClient(
@@ -277,6 +313,40 @@ describe('MCP tool result contracts', () => {
         id: 'opp-1',
         description: completeDescription,
         minAward: { amount: '10000', currency: 'USD' },
+        originalSourceUrl: 'https://example.gov/grants/opp-1',
+        acceptedApplicantTypes: [
+          {
+            value: 'custom',
+            customValue: 'California public agency',
+            description: 'A state or local public agency in California',
+          },
+          {
+            value: 'non_profit_with_501c3',
+            customValue: null,
+            description: null,
+          },
+        ],
+        agency: {
+          code: 'EDD',
+          name: 'Employment Development Department',
+          parentCode: null,
+          parentName: null,
+        },
+        contactInfo: {
+          name: 'Grant Office',
+          email: 'grants@example.gov',
+          phone: null,
+          description: null,
+        },
+        additionalInfo: {
+          url: 'https://example.gov/grants/opp-1/details',
+          description: null,
+        },
+        eligibilityCriteria: {
+          beneficiaryTypes: [{ code: 'EL020000', name: 'Youth' }],
+          details: 'Applicants must serve rural communities.',
+        },
+        warnings: [],
         postDate: {
           eventType: 'singleDate',
           name: 'Post date',
@@ -340,6 +410,139 @@ describe('MCP tool result contracts', () => {
           description: 'Applications are reviewed as received',
           details: 'Rolling until funds are exhausted',
         },
+      },
+    });
+  });
+
+  it('returns explicit nulls and warns without failing on malformed catalog fields', async () => {
+    const malformedOpportunity = {
+      ...opportunity,
+      customFields: {
+        agency: {
+          name: 'agency',
+          fieldType: 'object',
+          value: { name: 42 },
+        },
+        contactInfo: {
+          name: 'contactInfo',
+          fieldType: 'object',
+          value: { email: 'not an email' },
+        },
+        additionalInfo: {
+          name: 'additionalInfo',
+          fieldType: 'object',
+          value: { url: 'not a URL' },
+        },
+        eligibilityCriteria: {
+          name: 'eligibilityCriteria',
+          fieldType: 'object',
+          value: { details: 'Eligible', unexpected: true },
+        },
+      },
+    } as unknown as Opportunity;
+    const client = await connect([
+      fakeClient(
+        'federal',
+        async () => searchResult([]),
+        async () => malformedOpportunity,
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'get_opportunity',
+      arguments: { source: 'federal', id: 'opp-1' },
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.structuredContent).toMatchObject({
+      status: 'success',
+      opportunity: {
+        originalSourceUrl: null,
+        acceptedApplicantTypes: null,
+        agency: null,
+        contactInfo: null,
+        additionalInfo: null,
+        eligibilityCriteria: null,
+        warnings: [
+          {
+            field: 'agency',
+            code: 'invalid_catalog_field',
+            message: expect.stringContaining('Expected string'),
+          },
+          {
+            field: 'contactInfo',
+            code: 'invalid_catalog_field',
+            message: expect.stringContaining('Invalid email'),
+          },
+          {
+            field: 'additionalInfo',
+            code: 'invalid_catalog_field',
+            message: expect.stringContaining('Invalid url'),
+          },
+          {
+            field: 'eligibilityCriteria',
+            code: 'invalid_catalog_field',
+            message: expect.stringContaining("Unrecognized key(s) in object: 'unexpected'"),
+          },
+        ],
+      },
+    });
+  });
+
+  it('preserves an explicitly empty applicant list', async () => {
+    const client = await connect([
+      fakeClient(
+        'pa',
+        async () => searchResult([]),
+        async () => ({ ...opportunity, acceptedApplicantTypes: [] }) as Opportunity,
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'get_opportunity',
+      arguments: { source: 'pa', id: 'opp-1' },
+    });
+
+    expect(result.structuredContent).toMatchObject({
+      opportunity: { acceptedApplicantTypes: [], warnings: [] },
+    });
+  });
+
+  it('warns when a catalog field has the wrong envelope', async () => {
+    const client = await connect([
+      fakeClient(
+        'ca',
+        async () => searchResult([]),
+        async () =>
+          ({
+            ...opportunity,
+            customFields: {
+              agency: {
+                name: 'notAgency',
+                fieldType: 'string',
+                value: { name: 'Department of Transportation' },
+              },
+            },
+          }) as unknown as Opportunity,
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'get_opportunity',
+      arguments: { source: 'ca', id: 'opp-1' },
+    });
+
+    expect(result.structuredContent).toMatchObject({
+      status: 'success',
+      opportunity: {
+        agency: null,
+        warnings: [
+          {
+            field: 'agency',
+            code: 'invalid_catalog_field',
+            message: 'expected an object custom field named agency',
+          },
+        ],
       },
     });
   });
