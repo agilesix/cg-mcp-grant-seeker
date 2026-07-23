@@ -19,11 +19,11 @@ source you register.
 
 ## Tools
 
-| Tool                   | What it does                                                         |
-| ---------------------- | -------------------------------------------------------------------- |
-| `list_grant_sources`   | Lists the registered CommonGrants sources                            |
-| `search_opportunities` | Searches one source, or fans out across all when `source` is omitted |
-| `get_opportunity`      | Fetches normalized core and catalog details from a named source      |
+| Tool                   | What it does                                                          |
+| ---------------------- | --------------------------------------------------------------------- |
+| `list_grant_sources`   | Lists the registered CommonGrants sources                             |
+| `search_opportunities` | Searches bounded pages from one source or fans out across all sources |
+| `get_opportunity`      | Fetches normalized core and catalog details from a named source       |
 
 All tools are read-only and carry the MCP annotations (`readOnlyHint`,
 `openWorldHint`) the Claude and OpenAI marketplaces require.

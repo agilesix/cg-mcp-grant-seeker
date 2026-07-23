@@ -20,7 +20,10 @@ const opportunity = {
   },
 } as unknown as Opportunity;
 
-function searchResult(items: Opportunity[]): SearchResult {
+function searchResult(
+  items: Opportunity[],
+  pagination: Partial<SearchResult['paginationInfo']> = {},
+): SearchResult {
   return {
     items,
     paginationInfo: {
@@ -28,6 +31,7 @@ function searchResult(items: Opportunity[]): SearchResult {
       pageSize: 5,
       totalItems: items.length,
       totalPages: items.length === 0 ? 0 : 1,
+      ...pagination,
     },
   } as unknown as SearchResult;
 }
@@ -107,6 +111,13 @@ describe('MCP tool result contracts', () => {
           status: 'success',
           returned: 1,
           total: 1,
+          pagination: {
+            page: 1,
+            pageSize: 5,
+            totalPages: 1,
+            hasNextPage: false,
+            nextPage: null,
+          },
           opportunities: [
             {
               source: { name: 'federal', label: 'federal grants' },
@@ -130,12 +141,296 @@ describe('MCP tool result contracts', () => {
           status: 'empty',
           returned: 0,
           total: 0,
+          pagination: {
+            page: 1,
+            pageSize: 5,
+            totalPages: 0,
+            hasNextPage: false,
+            nextPage: null,
+          },
           opportunities: [],
           error: null,
         },
       ],
     });
   });
+
+  it('returns source pagination and passes the requested page to the SDK boundary', async () => {
+    const federal = fakeClient('federal', async () =>
+      searchResult([opportunity], {
+        page: 2,
+        pageSize: 1,
+        totalItems: 5,
+        totalPages: 3,
+      }),
+    );
+    const client = await connect([federal]);
+
+    const result = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal', page: 2, limit: 2 },
+    });
+
+    expect(federal.searchOpportunities).toHaveBeenCalledWith({
+      query: undefined,
+      statuses: ['open', 'forecasted'],
+      page: 2,
+      pageSize: 2,
+    });
+    expect(result.structuredContent).toMatchObject({
+      sources: [
+        {
+          status: 'success',
+          returned: 1,
+          total: 5,
+          pagination: {
+            page: 2,
+            pageSize: 1,
+            totalPages: 3,
+            hasNextPage: true,
+            nextPage: 3,
+          },
+        },
+      ],
+    });
+    if (!('content' in result)) throw new Error('Expected an immediate tool result');
+    const content = result.content as unknown[];
+    expect(content[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('page 2 of 3'),
+    });
+  });
+
+  it('passes bounded default pagination to every source', async () => {
+    const federal = fakeClient('federal', async () => searchResult([]));
+    const california = fakeClient('california', async () => searchResult([]));
+    const client = await connect([federal, california]);
+
+    await client.callTool({ name: 'search_opportunities', arguments: {} });
+
+    for (const source of [federal, california]) {
+      expect(source.searchOpportunities).toHaveBeenCalledWith({
+        query: undefined,
+        statuses: ['open', 'forecasted'],
+        page: 1,
+        pageSize: 5,
+      });
+    }
+  });
+
+  for (const [argument, value] of [
+    ['page', 0],
+    ['page', 1.5],
+    ['limit', 0],
+    ['limit', 26],
+    ['limit', 1.5],
+  ] as const) {
+    it(`rejects invalid ${argument} ${value} before calling a source`, async () => {
+      const federal = fakeClient('federal', async () => searchResult([]));
+      const client = await connect([federal]);
+
+      const result = await client.callTool({
+        name: 'search_opportunities',
+        arguments: { [argument]: value },
+      });
+
+      expect(result.isError).toBe(true);
+      expect(federal.searchOpportunities).not.toHaveBeenCalled();
+    });
+  }
+
+  it('reports independent continuation state for each fanout source', async () => {
+    const client = await connect([
+      fakeClient('federal', async () =>
+        searchResult([opportunity], {
+          page: 1,
+          pageSize: 1,
+          totalItems: 3,
+          totalPages: 3,
+        }),
+      ),
+      fakeClient('california', async () =>
+        searchResult([opportunity], {
+          page: 1,
+          pageSize: 1,
+          totalItems: 1,
+          totalPages: 1,
+        }),
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { limit: 1 },
+    });
+
+    expect(result.structuredContent).toMatchObject({
+      sources: [
+        {
+          source: { name: 'federal' },
+          pagination: { hasNextPage: true, nextPage: 2 },
+        },
+        {
+          source: { name: 'california' },
+          pagination: { hasNextPage: false, nextPage: null },
+        },
+      ],
+    });
+  });
+
+  it('distinguishes an exhausted page from a search with no matches', async () => {
+    const client = await connect([
+      fakeClient('federal', async () =>
+        searchResult([], {
+          page: 3,
+          pageSize: 0,
+          totalItems: 4,
+          totalPages: 2,
+        }),
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal', page: 3, limit: 2 },
+    });
+
+    expect(result.structuredContent).toMatchObject({
+      sources: [
+        {
+          status: 'empty',
+          returned: 0,
+          total: 4,
+          pagination: {
+            page: 3,
+            pageSize: 0,
+            totalPages: 2,
+            hasNextPage: false,
+            nextPage: null,
+          },
+        },
+      ],
+    });
+    if (!('content' in result)) throw new Error('Expected an immediate tool result');
+    const content = result.content as unknown[];
+    expect(content[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('page 3 has no results (4 total)'),
+    });
+  });
+
+  it('represents unknown totals and continuation without guessing', async () => {
+    const client = await connect([
+      fakeClient('federal', async () =>
+        searchResult([opportunity], {
+          page: 1,
+          pageSize: 1,
+          totalItems: null,
+          totalPages: null,
+        }),
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal', limit: 1 },
+    });
+
+    expect(result.structuredContent).toMatchObject({
+      sources: [
+        {
+          status: 'success',
+          total: null,
+          pagination: {
+            page: 1,
+            pageSize: 1,
+            totalPages: null,
+            hasNextPage: null,
+            nextPage: null,
+          },
+        },
+      ],
+    });
+  });
+
+  it('turns impossible pagination metadata into a source-level error', async () => {
+    const client = await connect([
+      fakeClient('federal', async () =>
+        searchResult([opportunity], {
+          page: 1,
+          pageSize: 1,
+          totalItems: 1,
+          totalPages: 1,
+        }),
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal', page: 2, limit: 1 },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toEqual({
+      sources: [
+        {
+          source: { name: 'federal', label: 'federal grants' },
+          status: 'error',
+          returned: 0,
+          total: null,
+          pagination: null,
+          opportunities: [],
+          error: 'Invalid pagination metadata returned for requested page 2',
+        },
+      ],
+    });
+  });
+
+  for (const [name, items, pagination] of [
+    [
+      'more items than the reported page size',
+      [opportunity, { ...opportunity, id: 'opp-2' }],
+      { page: 1, pageSize: 1, totalItems: 2, totalPages: 2 },
+    ],
+    [
+      'more returned items than total items',
+      [opportunity, { ...opportunity, id: 'opp-2' }],
+      { page: 1, pageSize: 2, totalItems: 1, totalPages: 1 },
+    ],
+    [
+      'items beyond the reported final page',
+      [opportunity],
+      { page: 2, pageSize: 1, totalItems: 1, totalPages: 1 },
+    ],
+    [
+      'zero total items with positive total pages',
+      [],
+      { page: 1, pageSize: 0, totalItems: 0, totalPages: 1 },
+    ],
+    [
+      'positive total items with zero total pages',
+      [],
+      { page: 1, pageSize: 0, totalItems: 1, totalPages: 0 },
+    ],
+  ] as const) {
+    it(`rejects pagination metadata with ${name}`, async () => {
+      const client = await connect([
+        fakeClient('federal', async () =>
+          searchResult([...items] as Opportunity[], { ...pagination }),
+        ),
+      ]);
+
+      const result = await client.callTool({
+        name: 'search_opportunities',
+        arguments: { source: 'federal', page: pagination.page },
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        sources: [{ status: 'error', pagination: null }],
+      });
+    });
+  }
 
   it('returns partial fanout results without marking the whole call as an error', async () => {
     const client = await connect([
@@ -159,6 +454,7 @@ describe('MCP tool result contracts', () => {
           status: 'error',
           returned: 0,
           total: null,
+          pagination: null,
           opportunities: [],
           error: 'source unavailable',
         },
@@ -211,6 +507,7 @@ describe('MCP tool result contracts', () => {
           status: 'error',
           returned: 0,
           total: null,
+          pagination: null,
           opportunities: [],
           error: 'federal unavailable',
         },

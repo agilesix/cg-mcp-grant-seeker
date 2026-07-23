@@ -3,7 +3,7 @@ import { ApplicantTypeOptionsEnum } from '@common-grants/sdk/schemas';
 import { z } from 'zod';
 import { catalogFieldsValue, catalogOutputSchema } from './catalog-fields.js';
 import { formatOpportunityDetail, formatOpportunitySummary } from './format.js';
-import type { ICommonGrantsClient, Opportunity, SearchParams } from './types.js';
+import type { ICommonGrantsClient, Opportunity, SearchParams, SearchResult } from './types.js';
 
 /** The base CommonGrants opportunity statuses (see {@link OpportunityStatus}). */
 const STATUS_VALUES = ['open', 'forecasted', 'closed', 'custom'] as const;
@@ -72,11 +72,20 @@ const opportunityDetailSchema = {
   ...catalogOutputSchema,
 };
 
+const paginationSchema = z.object({
+  page: z.number().int().positive(),
+  pageSize: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative().nullable(),
+  hasNextPage: z.boolean().nullable(),
+  nextPage: z.number().int().positive().nullable(),
+});
+
 const successfulSearchSchema = z.object({
   source: z.object(sourceSchema),
   status: z.literal('success'),
   returned: z.number().int().positive(),
-  total: z.number().int().positive(),
+  total: z.number().int().positive().nullable(),
+  pagination: paginationSchema,
   opportunities: z.array(z.object(opportunitySummarySchema)).min(1),
   error: z.null(),
 });
@@ -85,7 +94,8 @@ const emptySearchSchema = z.object({
   source: z.object(sourceSchema),
   status: z.literal('empty'),
   returned: z.literal(0),
-  total: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative().nullable(),
+  pagination: paginationSchema,
   opportunities: z.array(z.object(opportunitySummarySchema)).length(0),
   error: z.null(),
 });
@@ -95,6 +105,7 @@ const failedSearchSchema = z.object({
   status: z.literal('error'),
   returned: z.literal(0),
   total: z.null(),
+  pagination: z.null(),
   opportunities: z.array(z.object(opportunitySummarySchema)).length(0),
   error: z.string(),
 });
@@ -205,35 +216,70 @@ function opportunityDetail(
   };
 }
 
+function paginationValue(result: SearchResult, requestedPage: number) {
+  const { page, pageSize, totalItems, totalPages: rawTotalPages } = result.paginationInfo;
+  const totalPages = rawTotalPages ?? null;
+  const itemCount = result.items?.length ?? 0;
+  const invalid =
+    page !== requestedPage ||
+    pageSize < 0 ||
+    (totalItems != null && totalItems < 0) ||
+    (totalPages !== null && totalPages < 0) ||
+    itemCount > pageSize ||
+    (totalItems != null && itemCount > totalItems) ||
+    (itemCount > 0 && totalPages !== null && page > totalPages) ||
+    (totalItems === 0 && totalPages !== null && totalPages !== 0) ||
+    (totalItems != null && totalItems > 0 && totalPages === 0);
+  if (invalid) {
+    throw new Error(`Invalid pagination metadata returned for requested page ${requestedPage}`);
+  }
+  const hasNextPage = totalPages === null ? null : page < totalPages;
+  return {
+    page,
+    pageSize,
+    totalPages,
+    hasNextPage,
+    nextPage: hasNextPage ? page + 1 : null,
+  };
+}
+
 async function searchOne(
   client: ICommonGrantsClient,
   params: SearchParams,
-  limit: number,
 ): Promise<SearchOutcome> {
   try {
-    const result = await client.searchOpportunities({ ...params, page: 1, pageSize: limit });
+    const result = await client.searchOpportunities(params);
     const items = result.items ?? [];
+    const pagination = paginationValue(result, params.page ?? 1);
+    const { page, totalPages } = pagination;
     if (items.length === 0) {
+      const total = result.paginationInfo.totalItems ?? null;
       return {
         source: sourceValue(client),
         status: 'empty',
         returned: 0,
-        total: result.paginationInfo?.totalItems ?? 0,
+        total,
+        pagination,
         opportunities: [],
         error: null,
-        text: `**${client.label}**: no results`,
+        text:
+          total === 0
+            ? `**${client.label}**: no results`
+            : `**${client.label}**: page ${page} has no results${total === null ? '' : ` (${total} total)`}`,
       };
     }
-    const total = result.paginationInfo?.totalItems ?? items.length;
+    const total = result.paginationInfo.totalItems ?? null;
     const formatted = items.map((opp, i) => formatOpportunitySummary(opp, i)).join('\n\n');
+    const pageText = totalPages === null ? `page ${page}` : `page ${page} of ${totalPages}`;
     return {
       source: sourceValue(client),
       status: 'success',
       returned: items.length,
       total,
+      pagination,
       opportunities: items.map((opportunity) => opportunitySummary(opportunity, client)),
       error: null,
-      text: `**${client.label}** (showing ${items.length} of ${total})\n\n${formatted}`,
+      text: `**${client.label}** (${pageText}; showing ${items.length}${total === null ? '' : ` of ${total}`})\n\n${formatted}`,
     };
   } catch (err) {
     const message = errorMessage(err);
@@ -242,6 +288,7 @@ async function searchOne(
       status: 'error',
       returned: 0,
       total: null,
+      pagination: null,
       opportunities: [],
       error: message,
       text: `**${client.label}**: error — ${message}`,
@@ -304,6 +351,11 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
         '',
         'Omit `source` to fan out across every source and get combined, labeled results.',
         'Provide `source` (see list_grant_sources) to target one.',
+        'Use each source result’s `nextPage` and repeat the same search arguments except page',
+        'to continue that source; changing limit changes page boundaries.',
+        '`hasNextPage: false` means the source is exhausted; `hasNextPage: null` means',
+        'the source did not provide authoritative continuation metadata.',
+        'Pagination is not a snapshot, so changing source data can cause duplicates or omissions.',
       ].join('\n'),
       inputSchema: {
         query: z
@@ -315,17 +367,24 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
           .default(['open', 'forecasted'])
           .describe('Filter by opportunity status'),
         source: sourceEnum.optional().describe('Which source to query. Omit to search all.'),
-        limit: z.number().int().min(1).max(25).default(5).describe('Max results per source'),
+        page: z.number().int().min(1).default(1).describe('1-based results page'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(25)
+          .default(5)
+          .describe('Requested page size per source'),
       },
       outputSchema: {
         sources: z.array(searchResultSchema),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ query, statuses, source, limit }) => {
+    async ({ query, statuses, source, page, limit }) => {
       const targets = source ? [byName.get(source)!] : clients;
-      const params: SearchParams = { query, statuses };
-      const results = await Promise.all(targets.map((client) => searchOne(client, params, limit)));
+      const params: SearchParams = { query, statuses, page, pageSize: limit };
+      const results = await Promise.all(targets.map((client) => searchOne(client, params)));
       const structuredContent = {
         sources: results.map(({ text: _text, ...result }) => result),
       };
