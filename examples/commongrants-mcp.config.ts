@@ -16,6 +16,7 @@ export default defineConfig({
       label: 'Federal (Simpler.Grants.gov)',
       baseUrl: 'https://api.simpler.grants.gov',
       auth: { type: 'apiKey', key: process.env.FEDERAL_API_TOKEN },
+      // Reserved for future routing behavior; currently has no effect.
       isDefault: true,
     },
     {
