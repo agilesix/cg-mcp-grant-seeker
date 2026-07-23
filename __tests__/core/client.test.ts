@@ -33,7 +33,7 @@ describe('SdkCommonGrantsClient', () => {
       statuses: undefined,
       page: 1,
       pageSize: 5,
-      onParseError: 'throw',
+      onParseError: 'collect',
     });
     expect(get).toHaveBeenCalledWith('ca-1');
   });

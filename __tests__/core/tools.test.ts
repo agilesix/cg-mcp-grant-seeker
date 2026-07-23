@@ -26,6 +26,7 @@ function searchResult(
 ): SearchResult {
   return {
     items,
+    errors: [],
     paginationInfo: {
       page: 1,
       pageSize: 5,
@@ -83,6 +84,7 @@ describe('MCP tool result contracts', () => {
       tools.tools.find(({ name }) => name === 'search_opportunities')?.outputSchema,
     );
     expect(searchSchema).toContain('"const":"success"');
+    expect(searchSchema).toContain('"const":"partial"');
     expect(searchSchema).toContain('"const":"empty"');
     expect(searchSchema).toContain('"const":"error"');
 
@@ -158,6 +160,7 @@ describe('MCP tool result contracts', () => {
               },
             },
           ],
+          warnings: [],
           error: null,
         },
         {
@@ -173,6 +176,7 @@ describe('MCP tool result contracts', () => {
             nextPage: null,
           },
           opportunities: [],
+          warnings: [],
           error: null,
         },
       ],
@@ -394,6 +398,7 @@ describe('MCP tool result contracts', () => {
           total: null,
           pagination: null,
           opportunities: [],
+          warnings: [],
           error: 'Invalid pagination metadata returned for requested page 2',
         },
       ],
@@ -523,7 +528,134 @@ describe('MCP tool result contracts', () => {
           total: null,
           pagination: null,
           opportunities: [],
+          warnings: [],
           error: 'federal unavailable',
+        },
+      ],
+    });
+  });
+
+  it('preserves valid rows and reports malformed rows without leaking their contents', async () => {
+    const sensitiveValue = 'applicant-ssn-123-45-6789';
+    const resultWithParseFailure = {
+      ...searchResult([opportunity], { pageSize: 2, totalItems: 2 }),
+      errors: [
+        {
+          index: 1,
+          raw: { id: 'invalid', sensitiveValue },
+          error: new Error(`Invalid sensitive field: ${sensitiveValue}`),
+        },
+      ],
+    } as unknown as SearchResult;
+    const client = await connect([fakeClient('federal', async () => resultWithParseFailure)]);
+
+    const result = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal' },
+    });
+
+    expect(result.isError).toBe(false);
+    expect(result.structuredContent).toMatchObject({
+      sources: [
+        {
+          status: 'partial',
+          returned: 1,
+          opportunities: [{ id: 'opp-1' }],
+          warnings: [
+            {
+              code: 'invalid_opportunity_rows',
+              count: 1,
+              message: 'Some opportunities were omitted because they failed schema validation.',
+            },
+          ],
+          error: null,
+        },
+      ],
+    });
+    expect(JSON.stringify(result)).not.toContain(sensitiveValue);
+    expect(JSON.stringify(result)).not.toContain('"raw"');
+  });
+
+  it('returns a recoverable partial result when every row on a page is malformed', async () => {
+    const sensitiveValue = 'private-invalid-row';
+    const allInvalidResult = {
+      ...searchResult([], {
+        page: 1,
+        pageSize: 1,
+        totalItems: 2,
+        totalPages: 2,
+      }),
+      errors: [
+        {
+          index: 0,
+          raw: { id: sensitiveValue },
+          error: new Error(`Validation details for ${sensitiveValue}`),
+        },
+      ],
+    } as unknown as SearchResult;
+    let searchCount = 0;
+    const client = await connect([
+      fakeClient('federal', async () => {
+        searchCount += 1;
+        return searchCount === 1
+          ? allInvalidResult
+          : searchResult([opportunity], {
+              page: 2,
+              pageSize: 1,
+              totalItems: 2,
+              totalPages: 2,
+            });
+      }),
+    ]);
+
+    const result = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal' },
+    });
+
+    expect(result.isError).toBe(false);
+    expect(result.structuredContent).toEqual({
+      sources: [
+        {
+          source: { name: 'federal', label: 'federal grants' },
+          status: 'partial',
+          returned: 0,
+          total: 2,
+          pagination: {
+            page: 1,
+            pageSize: 1,
+            totalPages: 2,
+            hasNextPage: true,
+            nextPage: 2,
+          },
+          opportunities: [],
+          warnings: [
+            {
+              code: 'invalid_opportunity_rows',
+              count: 1,
+              message: 'Some opportunities were omitted because they failed schema validation.',
+            },
+          ],
+          error: null,
+        },
+      ],
+    });
+    expect(JSON.stringify(result)).not.toContain(sensitiveValue);
+    expect(JSON.stringify(result)).not.toContain('"raw"');
+
+    const nextPage = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal', page: 2, limit: 1 },
+    });
+    expect(nextPage.isError).toBe(false);
+    expect(nextPage.structuredContent).toMatchObject({
+      sources: [
+        {
+          status: 'success',
+          returned: 1,
+          pagination: { hasNextPage: false, nextPage: null },
+          opportunities: [{ id: 'opp-1' }],
+          warnings: [],
         },
       ],
     });

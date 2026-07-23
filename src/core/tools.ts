@@ -82,6 +82,15 @@ const paginationSchema = z.object({
   nextPage: z.number().int().positive().nullable(),
 });
 
+const searchWarningSchema = z.object({
+  code: z.literal('invalid_opportunity_rows'),
+  count: z.number().int().positive(),
+  message: z.literal('Some opportunities were omitted because they failed schema validation.'),
+});
+
+const noSearchWarningsSchema = z.array(searchWarningSchema).length(0);
+const partialSearchWarningsSchema = z.array(searchWarningSchema).length(1);
+
 const successfulSearchSchema = z.object({
   source: sourceObjectSchema,
   status: z.literal('success'),
@@ -89,6 +98,18 @@ const successfulSearchSchema = z.object({
   total: z.number().int().positive().nullable(),
   pagination: paginationSchema,
   opportunities: z.array(opportunitySummaryObjectSchema).min(1),
+  warnings: noSearchWarningsSchema,
+  error: z.null(),
+});
+
+const partialSearchSchema = z.object({
+  source: sourceObjectSchema,
+  status: z.literal('partial'),
+  returned: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative().nullable(),
+  pagination: paginationSchema,
+  opportunities: z.array(opportunitySummaryObjectSchema),
+  warnings: partialSearchWarningsSchema,
   error: z.null(),
 });
 
@@ -99,6 +120,7 @@ const emptySearchSchema = z.object({
   total: z.number().int().nonnegative().nullable(),
   pagination: paginationSchema,
   opportunities: z.array(opportunitySummaryObjectSchema).length(0),
+  warnings: noSearchWarningsSchema,
   error: z.null(),
 });
 
@@ -109,11 +131,13 @@ const failedSearchSchema = z.object({
   total: z.null(),
   pagination: z.null(),
   opportunities: z.array(opportunitySummaryObjectSchema).length(0),
+  warnings: noSearchWarningsSchema,
   error: z.string(),
 });
 
 const searchResultSchema = z.discriminatedUnion('status', [
   successfulSearchSchema,
+  partialSearchSchema,
   emptySearchSchema,
   failedSearchSchema,
 ]);
@@ -126,6 +150,19 @@ type SearchOutcome = z.infer<typeof searchResultSchema>;
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+function parseWarnings(count: number) {
+  return count === 0
+    ? []
+    : [
+        {
+          code: 'invalid_opportunity_rows' as const,
+          count,
+          message:
+            'Some opportunities were omitted because they failed schema validation.' as const,
+        },
+      ];
 }
 
 function sourceValue(client: ICommonGrantsClient): Source {
@@ -221,7 +258,7 @@ function opportunityDetail(
 function paginationValue(result: SearchResult, requestedPage: number) {
   const { page, pageSize, totalItems, totalPages: rawTotalPages } = result.paginationInfo;
   const totalPages = rawTotalPages ?? null;
-  const itemCount = result.items?.length ?? 0;
+  const itemCount = (result.items?.length ?? 0) + (result.errors?.length ?? 0);
   const invalid =
     page !== requestedPage ||
     pageSize < 0 ||
@@ -253,7 +290,20 @@ async function searchOne(
   try {
     const result = await client.searchOpportunities(params);
     const items = result.items ?? [];
+    const warnings = parseWarnings(result.errors?.length ?? 0);
     const pagination = paginationValue(result, params.page ?? 1);
+    if (warnings.length > 0) {
+      return {
+        source: sourceValue(client),
+        status: 'partial',
+        returned: items.length,
+        total: result.paginationInfo.totalItems ?? null,
+        pagination,
+        opportunities: items.map((opportunity) => opportunitySummary(opportunity, client)),
+        warnings,
+        error: null,
+      };
+    }
     if (items.length === 0) {
       const total = result.paginationInfo.totalItems ?? null;
       return {
@@ -263,6 +313,7 @@ async function searchOne(
         total,
         pagination,
         opportunities: [],
+        warnings,
         error: null,
       };
     }
@@ -274,6 +325,7 @@ async function searchOne(
       total,
       pagination,
       opportunities: items.map((opportunity) => opportunitySummary(opportunity, client)),
+      warnings,
       error: null,
     };
   } catch (err) {
@@ -285,6 +337,7 @@ async function searchOne(
       total: null,
       pagination: null,
       opportunities: [],
+      warnings: [],
       error: message,
     };
   }
@@ -341,6 +394,8 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
         'to continue that source; changing limit changes page boundaries.',
         '`hasNextPage: false` means the source is exhausted; `hasNextPage: null` means',
         'the source did not provide authoritative continuation metadata.',
+        'A `partial` result reports malformed rows that were omitted while preserving valid rows',
+        'and pagination, including when the current page contains no valid rows.',
         'Pagination is not a snapshot, so changing source data can cause duplicates or omissions.',
       ].join('\n'),
       inputSchema: {

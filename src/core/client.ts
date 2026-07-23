@@ -53,10 +53,7 @@ export class SdkCommonGrantsClient implements ICommonGrantsClient {
       statuses: statuses as unknown as SdkSearchArgs['statuses'],
       page,
       pageSize,
-      // Preserve the SDK 0.5 fail-fast contract. SDK 0.6 otherwise collects
-      // malformed rows in result.errors, which this generic MCP client does
-      // not yet expose.
-      onParseError: 'throw',
+      onParseError: 'collect',
     });
   }
 
