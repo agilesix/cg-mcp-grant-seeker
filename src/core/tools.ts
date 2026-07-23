@@ -1,29 +1,232 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { formatOpportunityDetail, formatOpportunitySummary } from './format.js';
-import type { ICommonGrantsClient, SearchParams } from './types.js';
+import type { ICommonGrantsClient, Opportunity, SearchParams } from './types.js';
 
 /** The base CommonGrants opportunity statuses (see {@link OpportunityStatus}). */
 const STATUS_VALUES = ['open', 'forecasted', 'closed', 'custom'] as const;
 
+const sourceSchema = {
+  name: z.string(),
+  label: z.string(),
+};
+
+const moneySchema = z
+  .object({
+    amount: z.string(),
+    currency: z.string().nullable(),
+  })
+  .nullable();
+
+const eventSchema = z
+  .discriminatedUnion('eventType', [
+    z.object({
+      eventType: z.literal('singleDate'),
+      name: z.string(),
+      description: z.string().nullable(),
+      date: z.string(),
+      time: z.string().nullable(),
+    }),
+    z.object({
+      eventType: z.literal('dateRange'),
+      name: z.string(),
+      description: z.string().nullable(),
+      startDate: z.string(),
+      startTime: z.string().nullable(),
+      endDate: z.string(),
+      endTime: z.string().nullable(),
+    }),
+    z.object({
+      eventType: z.literal('other'),
+      name: z.string(),
+      description: z.string().nullable(),
+      details: z.string().nullable(),
+    }),
+  ])
+  .nullable();
+
+const opportunitySummarySchema = {
+  source: z.object(sourceSchema),
+  id: z.string(),
+  title: z.string().nullable(),
+  status: z.string().nullable(),
+  maxAward: moneySchema,
+  closeDate: eventSchema,
+};
+
+const opportunityDetailSchema = {
+  ...opportunitySummarySchema,
+  description: z.string().nullable(),
+  minAward: moneySchema,
+  postDate: eventSchema,
+};
+
+const successfulSearchSchema = z.object({
+  source: z.object(sourceSchema),
+  status: z.literal('success'),
+  returned: z.number().int().positive(),
+  total: z.number().int().positive(),
+  opportunities: z.array(z.object(opportunitySummarySchema)).min(1),
+  error: z.null(),
+});
+
+const emptySearchSchema = z.object({
+  source: z.object(sourceSchema),
+  status: z.literal('empty'),
+  returned: z.literal(0),
+  total: z.number().int().nonnegative(),
+  opportunities: z.array(z.object(opportunitySummarySchema)).length(0),
+  error: z.null(),
+});
+
+const failedSearchSchema = z.object({
+  source: z.object(sourceSchema),
+  status: z.literal('error'),
+  returned: z.literal(0),
+  total: z.null(),
+  opportunities: z.array(z.object(opportunitySummarySchema)).length(0),
+  error: z.string(),
+});
+
+const searchResultSchema = z.discriminatedUnion('status', [
+  successfulSearchSchema,
+  emptySearchSchema,
+  failedSearchSchema,
+]);
+
+type Source = z.infer<z.ZodObject<typeof sourceSchema>>;
+type OpportunitySummary = z.infer<z.ZodObject<typeof opportunitySummarySchema>>;
+type OpportunityDetail = z.infer<z.ZodObject<typeof opportunityDetailSchema>>;
+
+type SearchOutcome = z.infer<typeof searchResultSchema> & { text: string };
+
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+function sourceValue(client: ICommonGrantsClient): Source {
+  return { name: client.name, label: client.label };
+}
+
+function dateValue(value: Date | string | null | undefined): string | null {
+  if (value == null || value === '') return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString().slice(0, 10);
+}
+
+function eventValue(event: NonNullable<Opportunity['keyDates']>['closeDate'] | undefined) {
+  if (!event) return null;
+  if (event.eventType === 'singleDate') {
+    const date = dateValue(event.date);
+    return date
+      ? {
+          eventType: 'singleDate' as const,
+          name: event.name,
+          description: event.description ?? null,
+          date,
+          time: event.time ?? null,
+        }
+      : null;
+  }
+  if (event.eventType === 'dateRange') {
+    const startDate = dateValue(event.startDate);
+    const endDate = dateValue(event.endDate);
+    if (!startDate || !endDate) return null;
+    return {
+      eventType: 'dateRange' as const,
+      name: event.name,
+      description: event.description ?? null,
+      startDate,
+      startTime: event.startTime ?? null,
+      endDate,
+      endTime: event.endTime ?? null,
+    };
+  }
+  return {
+    eventType: 'other' as const,
+    name: event.name,
+    description: event.description ?? null,
+    details: event.details ?? null,
+  };
+}
+
+function moneyValue(
+  money: { amount?: string | number | null; currency?: string | null } | null | undefined,
+) {
+  if (money?.amount == null || money.amount === '') return null;
+  return {
+    amount: String(money.amount),
+    currency: money.currency ?? null,
+  };
+}
+
+function opportunitySummary(
+  opportunity: Opportunity,
+  client: ICommonGrantsClient,
+): OpportunitySummary {
+  return {
+    source: sourceValue(client),
+    id: opportunity.id,
+    title: opportunity.title ?? null,
+    status: opportunity.status?.value ?? null,
+    maxAward: moneyValue(opportunity.funding?.maxAwardAmount),
+    closeDate: eventValue(opportunity.keyDates?.closeDate),
+  };
+}
+
+function opportunityDetail(
+  opportunity: Opportunity,
+  client: ICommonGrantsClient,
+): OpportunityDetail {
+  return {
+    ...opportunitySummary(opportunity, client),
+    description: opportunity.description ?? null,
+    minAward: moneyValue(opportunity.funding?.minAwardAmount),
+    postDate: eventValue(opportunity.keyDates?.postDate),
+  };
 }
 
 async function searchOne(
   client: ICommonGrantsClient,
   params: SearchParams,
   limit: number,
-): Promise<string> {
+): Promise<SearchOutcome> {
   try {
     const result = await client.searchOpportunities({ ...params, page: 1, pageSize: limit });
     const items = result.items ?? [];
-    if (items.length === 0) return `**${client.label}**: no results`;
+    if (items.length === 0) {
+      return {
+        source: sourceValue(client),
+        status: 'empty',
+        returned: 0,
+        total: result.paginationInfo?.totalItems ?? 0,
+        opportunities: [],
+        error: null,
+        text: `**${client.label}**: no results`,
+      };
+    }
     const total = result.paginationInfo?.totalItems ?? items.length;
     const formatted = items.map((opp, i) => formatOpportunitySummary(opp, i)).join('\n\n');
-    return `**${client.label}** (showing ${items.length} of ${total})\n\n${formatted}`;
+    return {
+      source: sourceValue(client),
+      status: 'success',
+      returned: items.length,
+      total,
+      opportunities: items.map((opportunity) => opportunitySummary(opportunity, client)),
+      error: null,
+      text: `**${client.label}** (showing ${items.length} of ${total})\n\n${formatted}`,
+    };
   } catch (err) {
-    return `**${client.label}**: error — ${errorMessage(err)}`;
+    const message = errorMessage(err);
+    return {
+      source: sourceValue(client),
+      status: 'error',
+      returned: 0,
+      total: null,
+      opportunities: [],
+      error: message,
+      text: `**${client.label}**: error — ${message}`,
+    };
   }
 }
 
@@ -50,20 +253,27 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
       title: 'List grant sources',
       description: 'List the CommonGrants-compliant APIs this server can search.',
       inputSchema: {},
+      outputSchema: {
+        sources: z.array(z.object(sourceSchema)),
+      },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async () => ({
-      content: [
-        {
-          type: 'text',
-          text: [
-            'Available grant sources:\n',
-            ...clients.map((c) => `- **${c.name}**: ${c.label}`),
-            '\nAll sources implement the CommonGrants protocol, so the same tools work across every one.',
-          ].join('\n'),
-        },
-      ],
-    }),
+    async () => {
+      const structuredContent = { sources: clients.map(sourceValue) };
+      return {
+        content: [
+          {
+            type: 'text',
+            text: [
+              'Available grant sources:\n',
+              ...clients.map((c) => `- **${c.name}**: ${c.label}`),
+              '\nAll sources implement the CommonGrants protocol, so the same tools work across every one.',
+            ].join('\n'),
+          },
+        ],
+        structuredContent,
+      };
+    },
   );
 
   server.registerTool(
@@ -88,13 +298,23 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
         source: sourceEnum.optional().describe('Which source to query. Omit to search all.'),
         limit: z.number().int().min(1).max(25).default(5).describe('Max results per source'),
       },
+      outputSchema: {
+        sources: z.array(searchResultSchema),
+      },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     async ({ query, statuses, source, limit }) => {
       const targets = source ? [byName.get(source)!] : clients;
       const params: SearchParams = { query, statuses };
       const results = await Promise.all(targets.map((client) => searchOne(client, params, limit)));
-      return { content: [{ type: 'text', text: results.join('\n\n---\n\n') }] };
+      const structuredContent = {
+        sources: results.map(({ text: _text, ...result }) => result),
+      };
+      return {
+        content: [{ type: 'text', text: results.map(({ text }) => text).join('\n\n---\n\n') }],
+        structuredContent,
+        isError: results.every(({ status }) => status === 'error'),
+      };
     },
   );
 
@@ -102,10 +322,17 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
     'get_opportunity',
     {
       title: 'Get grant opportunity',
-      description: 'Get the full details of a specific grant opportunity by ID from one source.',
+      description:
+        'Get selected normalized details for a specific grant opportunity by ID from one source.',
       inputSchema: {
         id: z.string().describe('The opportunity ID'),
         source: sourceEnum.describe('Which source the opportunity belongs to'),
+      },
+      outputSchema: {
+        source: z.object(sourceSchema),
+        status: z.enum(['success', 'error']),
+        opportunity: z.object(opportunityDetailSchema).nullable(),
+        error: z.string().nullable(),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -113,15 +340,31 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
       const client = byName.get(source)!;
       try {
         const opp = await client.getOpportunity(id);
-        return { content: [{ type: 'text', text: formatOpportunityDetail(opp, client.label) }] };
+        return {
+          content: [{ type: 'text', text: formatOpportunityDetail(opp, client.label, 500) }],
+          structuredContent: {
+            source: sourceValue(client),
+            status: 'success' as const,
+            opportunity: opportunityDetail(opp, client),
+            error: null,
+          },
+        };
       } catch (err) {
+        const message = errorMessage(err);
         return {
           content: [
             {
               type: 'text',
-              text: `${client.label}: could not retrieve ${id} — ${errorMessage(err)}`,
+              text: `${client.label}: could not retrieve ${id} — ${message}`,
             },
           ],
+          structuredContent: {
+            source: sourceValue(client),
+            status: 'error' as const,
+            opportunity: null,
+            error: message,
+          },
+          isError: true,
         };
       }
     },
