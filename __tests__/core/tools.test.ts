@@ -92,6 +92,29 @@ describe('MCP tool result contracts', () => {
     });
   });
 
+  it('validates referenced search and detail output schemas after discovery', async () => {
+    const client = await connect([fakeClient('federal', async () => searchResult([opportunity]))]);
+
+    await client.listTools();
+
+    const search = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal' },
+    });
+    const detail = await client.callTool({
+      name: 'get_opportunity',
+      arguments: { source: 'federal', id: 'opp-1' },
+    });
+
+    expect(search.structuredContent).toMatchObject({
+      sources: [{ status: 'success', opportunities: [{ id: 'opp-1' }] }],
+    });
+    expect(detail.structuredContent).toMatchObject({
+      status: 'success',
+      opportunity: { id: 'opp-1' },
+    });
+  });
+
   it('distinguishes successful and empty source searches', async () => {
     const client = await connect([
       fakeClient('federal', async () => searchResult([opportunity])),

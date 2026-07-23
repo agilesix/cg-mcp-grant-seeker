@@ -13,6 +13,8 @@ const sourceSchema = {
   label: z.string(),
 };
 
+const sourceObjectSchema = z.object(sourceSchema);
+
 const moneySchema = z
   .object({
     amount: z.string(),
@@ -54,7 +56,7 @@ const applicantTypeSchema = z.object({
 });
 
 const opportunitySummarySchema = {
-  source: z.object(sourceSchema),
+  source: sourceObjectSchema,
   id: z.string(),
   title: z.string().nullable(),
   status: z.string().nullable(),
@@ -62,15 +64,16 @@ const opportunitySummarySchema = {
   closeDate: eventSchema,
 };
 
-const opportunityDetailSchema = {
-  ...opportunitySummarySchema,
+const opportunitySummaryObjectSchema = z.object(opportunitySummarySchema);
+
+const opportunityDetailObjectSchema = opportunitySummaryObjectSchema.extend({
   description: z.string().nullable(),
   minAward: moneySchema,
   postDate: eventSchema,
   originalSourceUrl: z.string().url().nullable(),
   acceptedApplicantTypes: z.array(applicantTypeSchema).nullable(),
   ...catalogOutputSchema,
-};
+});
 
 const paginationSchema = z.object({
   page: z.number().int().positive(),
@@ -81,32 +84,32 @@ const paginationSchema = z.object({
 });
 
 const successfulSearchSchema = z.object({
-  source: z.object(sourceSchema),
+  source: sourceObjectSchema,
   status: z.literal('success'),
   returned: z.number().int().positive(),
   total: z.number().int().positive().nullable(),
   pagination: paginationSchema,
-  opportunities: z.array(z.object(opportunitySummarySchema)).min(1),
+  opportunities: z.array(opportunitySummaryObjectSchema).min(1),
   error: z.null(),
 });
 
 const emptySearchSchema = z.object({
-  source: z.object(sourceSchema),
+  source: sourceObjectSchema,
   status: z.literal('empty'),
   returned: z.literal(0),
   total: z.number().int().nonnegative().nullable(),
   pagination: paginationSchema,
-  opportunities: z.array(z.object(opportunitySummarySchema)).length(0),
+  opportunities: z.array(opportunitySummaryObjectSchema).length(0),
   error: z.null(),
 });
 
 const failedSearchSchema = z.object({
-  source: z.object(sourceSchema),
+  source: sourceObjectSchema,
   status: z.literal('error'),
   returned: z.literal(0),
   total: z.null(),
   pagination: z.null(),
-  opportunities: z.array(z.object(opportunitySummarySchema)).length(0),
+  opportunities: z.array(opportunitySummaryObjectSchema).length(0),
   error: z.string(),
 });
 
@@ -116,9 +119,9 @@ const searchResultSchema = z.discriminatedUnion('status', [
   failedSearchSchema,
 ]);
 
-type Source = z.infer<z.ZodObject<typeof sourceSchema>>;
-type OpportunitySummary = z.infer<z.ZodObject<typeof opportunitySummarySchema>>;
-type OpportunityDetail = z.infer<z.ZodObject<typeof opportunityDetailSchema>>;
+type Source = z.infer<typeof sourceObjectSchema>;
+type OpportunitySummary = z.infer<typeof opportunitySummaryObjectSchema>;
+type OpportunityDetail = z.infer<typeof opportunityDetailObjectSchema>;
 
 type SearchOutcome = z.infer<typeof searchResultSchema> & { text: string };
 
@@ -317,10 +320,11 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
     'list_grant_sources',
     {
       title: 'List grant sources',
-      description: 'List the CommonGrants-compliant APIs this server can search.',
+      description:
+        'Discover the CommonGrants-compliant APIs this server can search and their source identifiers.',
       inputSchema: {},
       outputSchema: {
-        sources: z.array(z.object(sourceSchema)),
+        sources: z.array(sourceObjectSchema),
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -347,7 +351,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
     {
       title: 'Search grant opportunities',
       description: [
-        'Search for grant opportunities across CommonGrants sources.',
+        'Discover grant opportunities and obtain source-scoped IDs for get_opportunity.',
         '',
         'Omit `source` to fan out across every source and get combined, labeled results.',
         'Provide `source` (see list_grant_sources) to target one.',
@@ -402,6 +406,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
       title: 'Get grant opportunity',
       description: [
         'Get normalized details for a specific grant opportunity by ID from one source.',
+        'Pass the `source` and `id` together from a search result; IDs are source-scoped.',
         'Includes core fields plus reusable CommonGrants catalog fields for agency, contact,',
         'additional information, and eligibility. Treat null as unknown or unavailable, not',
         'as a negative answer. Warnings identify malformed catalog data.',
@@ -411,9 +416,9 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
         source: sourceEnum.describe('Which source the opportunity belongs to'),
       },
       outputSchema: {
-        source: z.object(sourceSchema),
+        source: sourceObjectSchema,
         status: z.enum(['success', 'error']),
-        opportunity: z.object(opportunityDetailSchema).nullable(),
+        opportunity: opportunityDetailObjectSchema.nullable(),
         error: z.string().nullable(),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
