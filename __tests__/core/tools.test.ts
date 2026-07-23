@@ -83,10 +83,8 @@ describe('MCP tool result contracts', () => {
     const searchSchema = JSON.stringify(
       tools.tools.find(({ name }) => name === 'search_opportunities')?.outputSchema,
     );
-    expect(searchSchema).toContain('"const":"success"');
-    expect(searchSchema).toContain('"const":"partial"');
-    expect(searchSchema).toContain('"const":"empty"');
-    expect(searchSchema).toContain('"const":"error"');
+    expect(searchSchema).toContain('"enum":["success","empty","error"]');
+    expect(searchSchema).toContain('"omittedInvalidRows"');
 
     const result = await client.callTool({ name: 'list_grant_sources', arguments: {} });
     expect(result.content).toEqual([]);
@@ -135,15 +133,6 @@ describe('MCP tool result contracts', () => {
         {
           source: { name: 'federal', label: 'federal grants' },
           status: 'success',
-          returned: 1,
-          total: 1,
-          pagination: {
-            page: 1,
-            pageSize: 5,
-            totalPages: 1,
-            hasNextPage: false,
-            nextPage: null,
-          },
           opportunities: [
             {
               source: { name: 'federal', label: 'federal grants' },
@@ -160,23 +149,22 @@ describe('MCP tool result contracts', () => {
               },
             },
           ],
-          warnings: [],
+          total: 1,
+          page: 1,
+          hasNextPage: false,
+          nextPage: null,
+          omittedInvalidRows: 0,
           error: null,
         },
         {
           source: { name: 'california', label: 'california grants' },
           status: 'empty',
-          returned: 0,
-          total: 0,
-          pagination: {
-            page: 1,
-            pageSize: 5,
-            totalPages: 1,
-            hasNextPage: false,
-            nextPage: null,
-          },
           opportunities: [],
-          warnings: [],
+          total: 0,
+          page: 1,
+          hasNextPage: false,
+          nextPage: null,
+          omittedInvalidRows: 0,
           error: null,
         },
       ],
@@ -209,15 +197,10 @@ describe('MCP tool result contracts', () => {
       sources: [
         {
           status: 'success',
-          returned: 1,
           total: 5,
-          pagination: {
-            page: 2,
-            pageSize: 1,
-            totalPages: 3,
-            hasNextPage: true,
-            nextPage: 3,
-          },
+          page: 2,
+          hasNextPage: true,
+          nextPage: 3,
         },
       ],
     });
@@ -291,11 +274,13 @@ describe('MCP tool result contracts', () => {
       sources: [
         {
           source: { name: 'federal' },
-          pagination: { hasNextPage: true, nextPage: 2 },
+          hasNextPage: true,
+          nextPage: 2,
         },
         {
           source: { name: 'california' },
-          pagination: { hasNextPage: false, nextPage: null },
+          hasNextPage: false,
+          nextPage: null,
         },
       ],
     });
@@ -322,15 +307,10 @@ describe('MCP tool result contracts', () => {
       sources: [
         {
           status: 'empty',
-          returned: 0,
           total: 4,
-          pagination: {
-            page: 3,
-            pageSize: 0,
-            totalPages: 2,
-            hasNextPage: false,
-            nextPage: null,
-          },
+          page: 3,
+          hasNextPage: false,
+          nextPage: null,
         },
       ],
     });
@@ -359,97 +339,64 @@ describe('MCP tool result contracts', () => {
         {
           status: 'success',
           total: null,
-          pagination: {
-            page: 1,
-            pageSize: 1,
-            totalPages: null,
-            hasNextPage: null,
-            nextPage: null,
-          },
+          page: 1,
+          hasNextPage: null,
+          nextPage: null,
         },
       ],
     });
   });
 
-  it('turns impossible pagination metadata into a source-level error', async () => {
+  it('turns structurally invalid pagination metadata into a source-level error', async () => {
     const client = await connect([
       fakeClient('federal', async () =>
-        searchResult([opportunity], {
-          page: 1,
-          pageSize: 1,
-          totalItems: 1,
-          totalPages: 1,
-        }),
+        searchResult([opportunity], { page: 0, totalItems: -1, totalPages: -1 }),
       ),
     ]);
 
     const result = await client.callTool({
       name: 'search_opportunities',
-      arguments: { source: 'federal', page: 2, limit: 1 },
+      arguments: { source: 'federal' },
     });
 
     expect(result.isError).toBe(true);
-    expect(result.structuredContent).toEqual({
+    expect(result.structuredContent).toMatchObject({
       sources: [
         {
-          source: { name: 'federal', label: 'federal grants' },
           status: 'error',
-          returned: 0,
-          total: null,
-          pagination: null,
-          opportunities: [],
-          warnings: [],
-          error: 'Invalid pagination metadata returned for requested page 2',
+          page: 1,
+          nextPage: null,
+          error: 'Invalid pagination metadata returned by source',
         },
       ],
     });
   });
 
-  for (const [name, items, pagination] of [
-    [
-      'more items than the reported page size',
-      [opportunity, { ...opportunity, id: 'opp-2' }],
-      { page: 1, pageSize: 1, totalItems: 2, totalPages: 2 },
-    ],
-    [
-      'more returned items than total items',
-      [opportunity, { ...opportunity, id: 'opp-2' }],
-      { page: 1, pageSize: 2, totalItems: 1, totalPages: 1 },
-    ],
-    [
-      'items beyond the reported final page',
-      [opportunity],
-      { page: 2, pageSize: 1, totalItems: 1, totalPages: 1 },
-    ],
-    [
-      'zero total items with multiple total pages',
-      [],
-      { page: 1, pageSize: 0, totalItems: 0, totalPages: 2 },
-    ],
-    [
-      'positive total items with zero total pages',
-      [],
-      { page: 1, pageSize: 0, totalItems: 1, totalPages: 0 },
-    ],
-  ] as const) {
-    it(`rejects pagination metadata with ${name}`, async () => {
-      const client = await connect([
-        fakeClient('federal', async () =>
-          searchResult([...items] as Opportunity[], { ...pagination }),
-        ),
-      ]);
+  it('rejects a source page that does not match the requested page', async () => {
+    const client = await connect([
+      fakeClient('federal', async () =>
+        searchResult([opportunity], { page: 1, totalItems: 3, totalPages: 3 }),
+      ),
+    ]);
 
-      const result = await client.callTool({
-        name: 'search_opportunities',
-        arguments: { source: 'federal', page: pagination.page },
-      });
-
-      expect(result.isError).toBe(true);
-      expect(result.structuredContent).toMatchObject({
-        sources: [{ status: 'error', pagination: null }],
-      });
+    const result = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal', page: 2 },
     });
-  }
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      sources: [
+        {
+          status: 'error',
+          page: 2,
+          hasNextPage: null,
+          nextPage: null,
+          error: 'Invalid pagination metadata returned by source',
+        },
+      ],
+    });
+  });
 
   it('returns partial fanout results without marking the whole call as an error', async () => {
     const client = await connect([
@@ -471,10 +418,12 @@ describe('MCP tool result contracts', () => {
         {
           source: { name: 'california' },
           status: 'error',
-          returned: 0,
           total: null,
-          pagination: null,
           opportunities: [],
+          page: 1,
+          hasNextPage: null,
+          nextPage: null,
+          omittedInvalidRows: 0,
           error: 'source unavailable',
         },
       ],
@@ -524,11 +473,12 @@ describe('MCP tool result contracts', () => {
         {
           source: { name: 'federal', label: 'federal grants' },
           status: 'error',
-          returned: 0,
-          total: null,
-          pagination: null,
           opportunities: [],
-          warnings: [],
+          total: null,
+          page: 1,
+          hasNextPage: null,
+          nextPage: null,
+          omittedInvalidRows: 0,
           error: 'federal unavailable',
         },
       ],
@@ -558,16 +508,9 @@ describe('MCP tool result contracts', () => {
     expect(result.structuredContent).toMatchObject({
       sources: [
         {
-          status: 'partial',
-          returned: 1,
+          status: 'success',
           opportunities: [{ id: 'opp-1' }],
-          warnings: [
-            {
-              code: 'invalid_opportunity_rows',
-              count: 1,
-              message: 'Some opportunities were omitted because they failed schema validation.',
-            },
-          ],
+          omittedInvalidRows: 1,
           error: null,
         },
       ],
@@ -618,24 +561,13 @@ describe('MCP tool result contracts', () => {
       sources: [
         {
           source: { name: 'federal', label: 'federal grants' },
-          status: 'partial',
-          returned: 0,
-          total: 2,
-          pagination: {
-            page: 1,
-            pageSize: 1,
-            totalPages: 2,
-            hasNextPage: true,
-            nextPage: 2,
-          },
+          status: 'empty',
           opportunities: [],
-          warnings: [
-            {
-              code: 'invalid_opportunity_rows',
-              count: 1,
-              message: 'Some opportunities were omitted because they failed schema validation.',
-            },
-          ],
+          total: 2,
+          page: 1,
+          hasNextPage: true,
+          nextPage: 2,
+          omittedInvalidRows: 1,
           error: null,
         },
       ],
@@ -652,10 +584,10 @@ describe('MCP tool result contracts', () => {
       sources: [
         {
           status: 'success',
-          returned: 1,
-          pagination: { hasNextPage: false, nextPage: null },
+          hasNextPage: false,
+          nextPage: null,
           opportunities: [{ id: 'opp-1' }],
-          warnings: [],
+          omittedInvalidRows: 0,
         },
       ],
     });

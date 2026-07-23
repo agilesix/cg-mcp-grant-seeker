@@ -74,73 +74,17 @@ const opportunityDetailObjectSchema = opportunitySummaryObjectSchema.extend({
   ...catalogOutputSchema,
 });
 
-const paginationSchema = z.object({
+const searchResultSchema = z.object({
+  source: sourceObjectSchema,
+  status: z.enum(['success', 'empty', 'error']),
+  opportunities: z.array(opportunitySummaryObjectSchema),
+  total: z.number().int().nonnegative().nullable(),
   page: z.number().int().positive(),
-  pageSize: z.number().int().nonnegative(),
-  totalPages: z.number().int().nonnegative().nullable(),
   hasNextPage: z.boolean().nullable(),
   nextPage: z.number().int().positive().nullable(),
+  omittedInvalidRows: z.number().int().nonnegative(),
+  error: z.string().nullable(),
 });
-
-const searchWarningSchema = z.object({
-  code: z.literal('invalid_opportunity_rows'),
-  count: z.number().int().positive(),
-  message: z.literal('Some opportunities were omitted because they failed schema validation.'),
-});
-
-const noSearchWarningsSchema = z.array(searchWarningSchema).length(0);
-const partialSearchWarningsSchema = z.array(searchWarningSchema).length(1);
-
-const successfulSearchSchema = z.object({
-  source: sourceObjectSchema,
-  status: z.literal('success'),
-  returned: z.number().int().positive(),
-  total: z.number().int().positive().nullable(),
-  pagination: paginationSchema,
-  opportunities: z.array(opportunitySummaryObjectSchema).min(1),
-  warnings: noSearchWarningsSchema,
-  error: z.null(),
-});
-
-const partialSearchSchema = z.object({
-  source: sourceObjectSchema,
-  status: z.literal('partial'),
-  returned: z.number().int().nonnegative(),
-  total: z.number().int().nonnegative().nullable(),
-  pagination: paginationSchema,
-  opportunities: z.array(opportunitySummaryObjectSchema),
-  warnings: partialSearchWarningsSchema,
-  error: z.null(),
-});
-
-const emptySearchSchema = z.object({
-  source: sourceObjectSchema,
-  status: z.literal('empty'),
-  returned: z.literal(0),
-  total: z.number().int().nonnegative().nullable(),
-  pagination: paginationSchema,
-  opportunities: z.array(opportunitySummaryObjectSchema).length(0),
-  warnings: noSearchWarningsSchema,
-  error: z.null(),
-});
-
-const failedSearchSchema = z.object({
-  source: sourceObjectSchema,
-  status: z.literal('error'),
-  returned: z.literal(0),
-  total: z.null(),
-  pagination: z.null(),
-  opportunities: z.array(opportunitySummaryObjectSchema).length(0),
-  warnings: noSearchWarningsSchema,
-  error: z.string(),
-});
-
-const searchResultSchema = z.discriminatedUnion('status', [
-  successfulSearchSchema,
-  partialSearchSchema,
-  emptySearchSchema,
-  failedSearchSchema,
-]);
 
 type Source = z.infer<typeof sourceObjectSchema>;
 type OpportunitySummary = z.infer<typeof opportunitySummaryObjectSchema>;
@@ -150,19 +94,6 @@ type SearchOutcome = z.infer<typeof searchResultSchema>;
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
-}
-
-function parseWarnings(count: number) {
-  return count === 0
-    ? []
-    : [
-        {
-          code: 'invalid_opportunity_rows' as const,
-          count,
-          message:
-            'Some opportunities were omitted because they failed schema validation.' as const,
-        },
-      ];
 }
 
 function sourceValue(client: ICommonGrantsClient): Source {
@@ -256,28 +187,19 @@ function opportunityDetail(
 }
 
 function paginationValue(result: SearchResult, requestedPage: number) {
-  const { page, pageSize, totalItems, totalPages: rawTotalPages } = result.paginationInfo;
-  const totalPages = rawTotalPages ?? null;
-  const itemCount = (result.items?.length ?? 0) + (result.errors?.length ?? 0);
-  const invalid =
+  const { page, totalItems, totalPages } = result.paginationInfo;
+  if (
     page !== requestedPage ||
-    pageSize < 0 ||
-    (totalItems != null && totalItems < 0) ||
-    (totalPages !== null && totalPages < 0) ||
-    itemCount > pageSize ||
-    (totalItems != null && itemCount > totalItems) ||
-    (itemCount > 0 && totalPages !== null && page > totalPages) ||
-    // Empty collections commonly report either zero pages or one exhausted page.
-    (totalItems === 0 && totalPages !== null && totalPages > 1) ||
-    (totalItems != null && totalItems > 0 && totalPages === 0);
-  if (invalid) {
-    throw new Error(`Invalid pagination metadata returned for requested page ${requestedPage}`);
+    !Number.isInteger(page) ||
+    page < 1 ||
+    (totalItems != null && (!Number.isInteger(totalItems) || totalItems < 0)) ||
+    (totalPages != null && (!Number.isInteger(totalPages) || totalPages < 0))
+  ) {
+    throw new Error('Invalid pagination metadata returned by source');
   }
-  const hasNextPage = totalPages === null ? null : page < totalPages;
+  const hasNextPage = totalPages == null ? null : page < totalPages;
   return {
     page,
-    pageSize,
-    totalPages,
     hasNextPage,
     nextPage: hasNextPage ? page + 1 : null,
   };
@@ -290,42 +212,15 @@ async function searchOne(
   try {
     const result = await client.searchOpportunities(params);
     const items = result.items ?? [];
-    const warnings = parseWarnings(result.errors?.length ?? 0);
     const pagination = paginationValue(result, params.page ?? 1);
-    if (warnings.length > 0) {
-      return {
-        source: sourceValue(client),
-        status: 'partial',
-        returned: items.length,
-        total: result.paginationInfo.totalItems ?? null,
-        pagination,
-        opportunities: items.map((opportunity) => opportunitySummary(opportunity, client)),
-        warnings,
-        error: null,
-      };
-    }
-    if (items.length === 0) {
-      const total = result.paginationInfo.totalItems ?? null;
-      return {
-        source: sourceValue(client),
-        status: 'empty',
-        returned: 0,
-        total,
-        pagination,
-        opportunities: [],
-        warnings,
-        error: null,
-      };
-    }
     const total = result.paginationInfo.totalItems ?? null;
     return {
       source: sourceValue(client),
-      status: 'success',
-      returned: items.length,
-      total,
-      pagination,
+      status: items.length === 0 ? 'empty' : 'success',
       opportunities: items.map((opportunity) => opportunitySummary(opportunity, client)),
-      warnings,
+      total,
+      ...pagination,
+      omittedInvalidRows: result.errors?.length ?? 0,
       error: null,
     };
   } catch (err) {
@@ -333,11 +228,12 @@ async function searchOne(
     return {
       source: sourceValue(client),
       status: 'error',
-      returned: 0,
-      total: null,
-      pagination: null,
       opportunities: [],
-      warnings: [],
+      total: null,
+      page: params.page ?? 1,
+      hasNextPage: null,
+      nextPage: null,
+      omittedInvalidRows: 0,
       error: message,
     };
   }
@@ -391,11 +287,8 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
         'Omit `source` to fan out across every source and get combined, labeled results.',
         'Provide `source` (see list_grant_sources) to target one.',
         'Use each source result’s `nextPage` and repeat the same search arguments except page',
-        'to continue that source; changing limit changes page boundaries.',
-        '`hasNextPage: false` means the source is exhausted; `hasNextPage: null` means',
-        'the source did not provide authoritative continuation metadata.',
-        'A `partial` result reports malformed rows that were omitted while preserving valid rows',
-        'and pagination, including when the current page contains no valid rows.',
+        'to continue that source. `hasNextPage: null` means continuation is unknown.',
+        '`omittedInvalidRows` counts malformed rows removed from the page without exposing them.',
         'Pagination is not a snapshot, so changing source data can cause duplicates or omissions.',
       ].join('\n'),
       inputSchema: {
