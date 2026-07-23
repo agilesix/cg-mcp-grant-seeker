@@ -36,7 +36,7 @@ function formatEventDate(event: CgEvent | null | undefined): string | undefined 
     const end = formatDate(event.endDate);
     return start && end ? `${start} – ${end}` : (start ?? end);
   }
-  return undefined;
+  return event.details ?? event.description ?? event.name;
 }
 
 /**

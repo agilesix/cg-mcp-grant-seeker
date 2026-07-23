@@ -114,7 +114,13 @@ describe('MCP tool result contracts', () => {
               title: 'Workforce Development Grant',
               status: 'open',
               maxAward: { amount: '500000', currency: 'USD' },
-              closeDate: { type: 'singleDate', date: '2026-09-01' },
+              closeDate: {
+                eventType: 'singleDate',
+                name: 'Close date',
+                description: null,
+                date: '2026-09-01',
+                time: null,
+              },
             },
           ],
           error: null,
@@ -271,9 +277,70 @@ describe('MCP tool result contracts', () => {
         id: 'opp-1',
         description: completeDescription,
         minAward: { amount: '10000', currency: 'USD' },
-        postDate: { type: 'singleDate', date: '2026-06-01' },
+        postDate: {
+          eventType: 'singleDate',
+          name: 'Post date',
+          description: null,
+          date: '2026-06-01',
+          time: null,
+        },
       },
       error: null,
+    });
+  });
+
+  it('preserves complete date-range and other event semantics', async () => {
+    const eventfulOpportunity = {
+      ...opportunity,
+      keyDates: {
+        postDate: {
+          eventType: 'dateRange',
+          name: 'Application period',
+          description: 'Primary application period',
+          startDate: '2026-06-01',
+          startTime: '09:00:00',
+          endDate: '2026-06-30',
+          endTime: '17:00:00',
+        },
+        closeDate: {
+          eventType: 'other',
+          name: 'Rolling deadline',
+          description: 'Applications are reviewed as received',
+          details: 'Rolling until funds are exhausted',
+        },
+      },
+    } as unknown as Opportunity;
+    const client = await connect([
+      fakeClient(
+        'california',
+        async () => searchResult([eventfulOpportunity]),
+        async () => eventfulOpportunity,
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'get_opportunity',
+      arguments: { source: 'california', id: 'opp-1' },
+    });
+
+    expect(result.structuredContent).toMatchObject({
+      opportunity: {
+        postDate: {
+          eventType: 'dateRange',
+          name: 'Application period',
+          description: 'Primary application period',
+          startDate: '2026-06-01',
+          startTime: '09:00:00',
+          endDate: '2026-06-30',
+          endTime: '17:00:00',
+        },
+        closeDate: {
+          eventType: 'other',
+          name: 'Rolling deadline',
+          description: 'Applications are reviewed as received',
+          details: 'Rolling until funds are exhausted',
+        },
+      },
     });
   });
 });

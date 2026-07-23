@@ -19,12 +19,28 @@ const moneySchema = z
   .nullable();
 
 const eventSchema = z
-  .discriminatedUnion('type', [
-    z.object({ type: z.literal('singleDate'), date: z.string() }),
+  .discriminatedUnion('eventType', [
     z.object({
-      type: z.literal('dateRange'),
-      startDate: z.string().nullable(),
-      endDate: z.string().nullable(),
+      eventType: z.literal('singleDate'),
+      name: z.string(),
+      description: z.string().nullable(),
+      date: z.string(),
+      time: z.string().nullable(),
+    }),
+    z.object({
+      eventType: z.literal('dateRange'),
+      name: z.string(),
+      description: z.string().nullable(),
+      startDate: z.string(),
+      startTime: z.string().nullable(),
+      endDate: z.string(),
+      endTime: z.string().nullable(),
+    }),
+    z.object({
+      eventType: z.literal('other'),
+      name: z.string(),
+      description: z.string().nullable(),
+      details: z.string().nullable(),
     }),
   ])
   .nullable();
@@ -102,16 +118,36 @@ function eventValue(event: NonNullable<Opportunity['keyDates']>['closeDate'] | u
   if (!event) return null;
   if (event.eventType === 'singleDate') {
     const date = dateValue(event.date);
-    return date ? { type: 'singleDate' as const, date } : null;
+    return date
+      ? {
+          eventType: 'singleDate' as const,
+          name: event.name,
+          description: event.description ?? null,
+          date,
+          time: event.time ?? null,
+        }
+      : null;
   }
   if (event.eventType === 'dateRange') {
+    const startDate = dateValue(event.startDate);
+    const endDate = dateValue(event.endDate);
+    if (!startDate || !endDate) return null;
     return {
-      type: 'dateRange' as const,
-      startDate: dateValue(event.startDate),
-      endDate: dateValue(event.endDate),
+      eventType: 'dateRange' as const,
+      name: event.name,
+      description: event.description ?? null,
+      startDate,
+      startTime: event.startTime ?? null,
+      endDate,
+      endTime: event.endTime ?? null,
     };
   }
-  return null;
+  return {
+    eventType: 'other' as const,
+    name: event.name,
+    description: event.description ?? null,
+    details: event.details ?? null,
+  };
 }
 
 function moneyValue(
