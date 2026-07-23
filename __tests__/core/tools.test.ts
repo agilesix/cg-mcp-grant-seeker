@@ -118,7 +118,7 @@ describe('MCP tool result contracts', () => {
   it('distinguishes successful and empty source searches', async () => {
     const client = await connect([
       fakeClient('federal', async () => searchResult([opportunity])),
-      fakeClient('california', async () => searchResult([])),
+      fakeClient('california', async () => searchResult([], { totalPages: 1 })),
     ]);
 
     const result = await client.callTool({
@@ -167,7 +167,7 @@ describe('MCP tool result contracts', () => {
           pagination: {
             page: 1,
             pageSize: 5,
-            totalPages: 0,
+            totalPages: 1,
             hasNextPage: false,
             nextPage: null,
           },
@@ -426,9 +426,9 @@ describe('MCP tool result contracts', () => {
       { page: 2, pageSize: 1, totalItems: 1, totalPages: 1 },
     ],
     [
-      'zero total items with positive total pages',
+      'zero total items with multiple total pages',
       [],
-      { page: 1, pageSize: 0, totalItems: 0, totalPages: 1 },
+      { page: 1, pageSize: 0, totalItems: 0, totalPages: 2 },
     ],
     [
       'positive total items with zero total pages',

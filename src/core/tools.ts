@@ -231,7 +231,8 @@ function paginationValue(result: SearchResult, requestedPage: number) {
     itemCount > pageSize ||
     (totalItems != null && itemCount > totalItems) ||
     (itemCount > 0 && totalPages !== null && page > totalPages) ||
-    (totalItems === 0 && totalPages !== null && totalPages !== 0) ||
+    // Empty collections commonly report either zero pages or one exhausted page.
+    (totalItems === 0 && totalPages !== null && totalPages > 1) ||
     (totalItems != null && totalItems > 0 && totalPages === 0);
   if (invalid) {
     throw new Error(`Invalid pagination metadata returned for requested page ${requestedPage}`);
