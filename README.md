@@ -23,7 +23,7 @@ source you register.
 | ---------------------- | -------------------------------------------------------------------- |
 | `list_grant_sources`   | Lists the registered CommonGrants sources                            |
 | `search_opportunities` | Searches one source, or fans out across all when `source` is omitted |
-| `get_opportunity`      | Fetches a single opportunity by ID from a named source               |
+| `get_opportunity`      | Fetches normalized core and catalog details from a named source      |
 
 All tools are read-only and carry the MCP annotations (`readOnlyHint`,
 `openWorldHint`) the Claude and OpenAI marketplaces require.
@@ -74,7 +74,8 @@ for the full annotated example.
 src/
 ├── core/          # transport- & host-agnostic: ICommonGrantsClient seam,
 │   │              # SDK-backed client, tool registration, formatting
-│   ├── client.ts  #   the ONLY file that touches @common-grants/sdk
+│   ├── client.ts  #   the only file that calls @common-grants/sdk clients
+│   ├── catalog-fields.ts # validates reusable CommonGrants catalog fields
 │   ├── tools.ts   #   list_grant_sources / search_opportunities / get_opportunity
 │   ├── server.ts  #   createServer(sources) → wired McpServer
 │   └── format.ts
@@ -84,9 +85,10 @@ src/
 └── worker.ts      # remote entrypoint — Cloudflare Workers (Phase 2 stub)
 ```
 
-The server depends on an `ICommonGrantsClient` interface, not on the SDK
-directly, so SDK upgrades stay isolated to one file. Domain types are derived
-from the installed SDK so they never drift. See
+The server depends on an `ICommonGrantsClient` interface rather than an SDK
+client directly. SDK network calls stay isolated to `client.ts`; domain types,
+enumerations, and custom-field extraction reuse the installed SDK contracts.
+See
 [docs/adr/001-architecture.md](docs/adr/001-architecture.md).
 
 ## Hosting & marketplaces
