@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Plugin } from '@common-grants/sdk/extensions';
 
 const authSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('none') }),
@@ -10,6 +11,14 @@ const authSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('bearer'), token: z.string().optional() }),
 ]);
 
+const pluginSchema = z.custom<Plugin>(
+  (value) =>
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { getClient?: unknown }).getClient === 'function',
+  'plugin must be created with definePlugin()',
+);
+
 const sourceSchema = z.object({
   name: z
     .string()
@@ -18,6 +27,7 @@ const sourceSchema = z.object({
   label: z.string().min(1),
   baseUrl: z.string().url(),
   auth: authSchema.optional(),
+  plugin: pluginSchema.optional(),
   isDefault: z.boolean().optional(),
 });
 

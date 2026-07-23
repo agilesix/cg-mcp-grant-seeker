@@ -30,19 +30,24 @@ function buildAuth(auth: AuthConfig | undefined) {
 export class SdkCommonGrantsClient implements ICommonGrantsClient {
   readonly name: string;
   readonly label: string;
-  private readonly client: Client;
+  private readonly opportunities: {
+    search(args: SdkSearchArgs): Promise<SearchResult>;
+    get(id: string): Promise<Opportunity>;
+  };
 
   constructor(source: SourceConfig) {
     this.name = source.name;
     this.label = source.label;
-    this.client = new Client({ baseUrl: source.baseUrl, auth: buildAuth(source.auth) });
+    const config = { baseUrl: source.baseUrl, auth: buildAuth(source.auth) };
+    const client = source.plugin ? source.plugin.getClient(config) : new Client(config);
+    this.opportunities = client.opportunities as typeof this.opportunities;
   }
 
   searchOpportunities(params: SearchParams): Promise<SearchResult> {
     const { query, statuses, page = 1, pageSize } = params;
     // Pass page/pageSize explicitly: search() auto-paginates up to maxItems
     // (default 1000) when they're omitted, which would fetch every result.
-    return this.client.opportunities.search({
+    return this.opportunities.search({
       query,
       // Values are validated to the SDK's status enum at the tool boundary.
       statuses: statuses as unknown as SdkSearchArgs['statuses'],
@@ -56,7 +61,7 @@ export class SdkCommonGrantsClient implements ICommonGrantsClient {
   }
 
   getOpportunity(id: string): Promise<Opportunity> {
-    return this.client.opportunities.get(id);
+    return this.opportunities.get(id);
   }
 }
 
