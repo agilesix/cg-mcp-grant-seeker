@@ -1,4 +1,5 @@
 import type { Client } from '@common-grants/sdk/client';
+import type { Plugin } from '@common-grants/sdk/extensions';
 
 /**
  * Types derived directly from the installed @common-grants/sdk so they track
@@ -32,6 +33,8 @@ export interface SourceConfig {
   baseUrl: string;
   /** Optional auth. Omit for public sources (PA, CA). */
   auth?: AuthConfig;
+  /** Plugin that extends parsing and search behavior for this source. */
+  plugin?: Plugin;
   /** Marks the default source when a tool is called without an explicit source. */
   isDefault?: boolean;
 }

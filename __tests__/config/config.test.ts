@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { definePlugin } from '@common-grants/sdk/extensions';
 import { loadConfig, serverConfigSchema } from '../../src/config/index.js';
 
 const valid = {
@@ -56,6 +57,30 @@ describe('serverConfigSchema', () => {
         sources: [{ name: 'Fed Eral', label: 'A', baseUrl: 'https://a.example.com' }],
       }),
     ).toThrow();
+  });
+
+  it('preserves a plugin created with definePlugin', () => {
+    const plugin = definePlugin({});
+    const parsed = serverConfigSchema.parse({
+      sources: [{ name: 'ca', label: 'California', baseUrl: 'https://ca.example.com', plugin }],
+    });
+
+    expect(parsed.sources[0]!.plugin).toBe(plugin);
+  });
+
+  it('rejects a plugin without a client factory', () => {
+    expect(() =>
+      serverConfigSchema.parse({
+        sources: [
+          {
+            name: 'ca',
+            label: 'California',
+            baseUrl: 'https://ca.example.com',
+            plugin: { schemas: {} },
+          },
+        ],
+      }),
+    ).toThrow(/definePlugin/);
   });
 });
 
