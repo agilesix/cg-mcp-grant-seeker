@@ -42,7 +42,7 @@ function formatEventDate(event: CgEvent | null | undefined): string | undefined 
 /**
  * A compact one-entry summary for search result lists.
  *
- * Note the real @common-grants/sdk@0.5 opportunity shape: `status` is an
+ * Note the real @common-grants/sdk@0.6 opportunity shape: `status` is an
  * object ({ value }), money fields are Money objects, `keyDates.*` are Event
  * unions holding Date values, and there is no top-level `agency` field (agency
  * is only ever a plugin custom field).
