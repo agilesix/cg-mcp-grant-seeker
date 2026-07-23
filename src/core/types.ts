@@ -12,7 +12,7 @@ export type SearchResult = Awaited<ReturnType<Client['opportunities']['search']>
 
 /**
  * The base CommonGrants opportunity status values, derived from the SDK.
- * As of @common-grants/sdk@0.5: 'open' | 'forecasted' | 'closed' | 'custom'.
+ * As of @common-grants/sdk@0.6: 'open' | 'forecasted' | 'closed' | 'custom'.
  */
 export type OpportunityStatus = NonNullable<SearchArgs['statuses']>[number];
 
