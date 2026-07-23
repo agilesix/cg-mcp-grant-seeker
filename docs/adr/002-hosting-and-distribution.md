@@ -1,6 +1,6 @@
 # ADR 002: Hosting and distribution
 
-**Status:** Accepted (2026-07-07)
+**Status:** Accepted (2026-07-07); implementation notes updated 2026-07-23
 **Context:** deciding how this MCP server is hosted and distributed, driven by
 the goal of publishing to the Claude Connectors Directory and the OpenAI Apps
 SDK marketplace.
@@ -33,10 +33,13 @@ We researched what each marketplace requires. The finding that shapes everything
    URL is submitted to both Claude and OpenAI — one deployment, two listings.
    This makes remote HTTP a **day-one, first-class** concern, not a later phase.
 
-2. **Host on Cloudflare Workers via `McpAgent`.** Matches api-ca/api-pa and
-   reuses the wrangler + GitHub Actions model. The remote transport uses
-   Cloudflare's `McpAgent` (Durable Objects), because the MCP SDK's
-   `StreamableHTTPServerTransport` is Node-only.
+2. **Host on Cloudflare Workers with the MCP SDK's Web-standard transport.**
+   This matches the sibling deployments and reuses the wrangler + GitHub
+   Actions model. The implemented server uses
+   `WebStandardStreamableHTTPServerTransport` in stateless, JSON-response mode,
+   which fits the current public, read-only tools without Durable Objects.
+   `McpAgent` remains a future option if the server adds session state,
+   authenticated mutations, or server-initiated streaming.
 
 3. **No per-user OAuth — because grant search is public, read-only data.** The
    marketplaces mandate OAuth only for servers touching user accounts / private
@@ -47,7 +50,8 @@ We researched what each marketplace requires. The finding that shapes everything
 
 4. **Two-tier distribution:**
    - **Hosted (marketplace):** operator-fixed sources, server-side federal key,
-     zero-config connect. The Phase 2/3 focus.
+     zero-config connect. The remote server is implemented and deployed at
+     `https://mcp.cg.a6lab.ai/mcp`.
    - **Self-hosted (stdio, and later `.mcpb`):** users add their **own** sources
      and supply their **own** credentials via `commongrants-mcp.config.ts` and the
      environment. This is where "add your own credentials / new sources" lives.
@@ -65,15 +69,16 @@ We researched what each marketplace requires. The finding that shapes everything
 
 ## Consequences
 
-- Phase ordering is: core (stdio) → remote Worker → marketplace submission →
-  self-host distribution. Remote HTTP moved **up** from the original plan's Phase 4.
+- The core and remote Worker are implemented. Remaining distribution work is
+  marketplace submission and optional self-hosted packaging. Remote HTTP moved
+  **up** from the original plan's Phase 4.
 - No OAuth server to build or operate, as long as the server stays scoped to
   public data. If a future source requires per-user private data, that source
   would need OAuth and should be gated accordingly.
 - The federal key is a single operator secret; protect and rotate it (see
   SECURITY.md). Self-hosters bring their own.
 
-## Open items before submission (Phase 3)
+## Open items before marketplace submission
 
 - Privacy policy URL and support channel.
 - Branding assets (name, logo, description) per each platform.

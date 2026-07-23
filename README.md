@@ -68,27 +68,40 @@ export default defineConfig({
 See [`examples/commongrants-mcp.config.ts`](examples/commongrants-mcp.config.ts)
 for the full annotated example.
 
+Each source may optionally provide an SDK `Plugin`. When present, the server
+constructs that source's client with `plugin.getClient()` so the plugin's
+compiled opportunity schema is used while parsing responses. The built-in
+federal, Pennsylvania, and California registry currently uses the base SDK
+client because those APIs already return CommonGrants-compatible data.
+
+`isDefault` is reserved source configuration and has no routing effect today.
+Omitting `source` from `search_opportunities` fans out across every configured
+source, while `get_opportunity` always requires an explicit source. Do not rely
+on `isDefault` until default-source behavior is defined.
+
 ## Architecture
 
 ```
 src/
 ├── core/          # transport- & host-agnostic: ICommonGrantsClient seam,
-│   │              # SDK-backed client, tool registration, formatting
-│   ├── client.ts  #   the only file that calls @common-grants/sdk clients
+│   │              # SDK-backed client, tool registration, projection
+│   ├── client.ts  #   constructs and calls @common-grants/sdk clients
 │   ├── catalog-fields.ts # validates reusable CommonGrants catalog fields
 │   ├── tools.ts   #   list_grant_sources / search_opportunities / get_opportunity
 │   ├── server.ts  #   createServer(sources) → wired McpServer
-│   └── format.ts
+│   └── types.ts   #   SDK-derived domain types and the client seam
 ├── config/        # data-driven source registry (types, Zod schema,
 │                  # defineConfig, defaults, jiti loader)
 ├── stdio.ts       # local entrypoint (Claude Desktop, Inspector, self-hosters)
-└── worker.ts      # remote entrypoint — Cloudflare Workers (Phase 2 stub)
+└── worker.ts      # deployed stateless Streamable HTTP Cloudflare Worker
 ```
 
 The server depends on an `ICommonGrantsClient` interface rather than an SDK
-client directly. SDK network calls stay isolated to `client.ts`; domain types,
-enumerations, and custom-field extraction reuse the installed SDK contracts.
-See
+client directly. SDK client construction and network calls stay in `client.ts`;
+domain types and enumerations are derived from the installed SDK, and catalog
+projection reuses SDK extension helpers. The tool layer necessarily imports SDK
+schemas for its agent-facing output contract, so the boundary is intentionally
+narrow rather than absolute. See
 [docs/adr/001-architecture.md](docs/adr/001-architecture.md).
 
 ## Hosting & marketplaces
@@ -97,8 +110,9 @@ Both the Claude Connectors Directory and the OpenAI Apps SDK require a **remote,
 HTTPS-hosted** server; a single hosted URL is submitted to both. Because grant
 search is public, read-only data, the hosted server holds one server-side
 federal key and needs **no per-user OAuth** — users connect with zero config.
-The stdio server here is for local/self-hosted use. The remote Cloudflare
-Workers server is Phase 2 — see
+The stdio server is for local/self-hosted use. The remote Cloudflare Worker is
+implemented and deployed at `https://mcp.cg.a6lab.ai/mcp` using stateless,
+JSON-response Streamable HTTP. See
 [docs/adr/002-hosting-and-distribution.md](docs/adr/002-hosting-and-distribution.md).
 
 ## Scripts
@@ -109,7 +123,8 @@ Workers server is Phase 2 — see
 | `pnpm test` / `pnpm run test:coverage` | Run unit tests                                   |
 | `pnpm run checks`                      | Lint + format + typecheck                        |
 | `pnpm run ci`                          | Full CI sequence (types + checks + build + test) |
-| `pnpm run deploy`                      | Deploy the remote Worker (Phase 2)               |
+| `pnpm run dev:worker`                  | Run the Cloudflare Worker locally                |
+| `pnpm run deploy`                      | Deploy the remote Cloudflare Worker              |
 
 ## Contributing
 

@@ -35,7 +35,10 @@ export interface SourceConfig {
   auth?: AuthConfig;
   /** Plugin that extends parsing and search behavior for this source. */
   plugin?: Plugin;
-  /** Marks the default source when a tool is called without an explicit source. */
+  /**
+   * Reserved for possible default-source behavior. Current tools do not read
+   * this value: search without a source fans out, and retrieval requires one.
+   */
   isDefault?: boolean;
 }
 
@@ -48,9 +51,9 @@ export interface SearchParams {
 }
 
 /**
- * The MCP server depends only on this interface, never on @common-grants/sdk
- * directly. This isolates SDK upgrades to one implementation file and leaves
- * room to add retries, caching, or pagination helpers later.
+ * MCP network operations depend on this interface rather than the SDK client
+ * directly. Client construction and calls stay in one implementation, while
+ * tool contracts and projections may still import SDK schemas and extensions.
  */
 export interface ICommonGrantsClient {
   readonly name: string;

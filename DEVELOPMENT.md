@@ -6,7 +6,7 @@ Local development guide for the CommonGrants MCP server.
 
 - **Node.js** 22 or higher. A `.node-version` and `.nvmrc` are checked in; run `nvm use` (or `fnm use`) after cloning.
 - **pnpm** 10 or higher. This repo pins the exact version via the `packageManager` field. Run `corepack enable` once after cloning to let Corepack auto-install the pinned pnpm.
-- **Cloudflare account** (optional, only needed to deploy the remote server in Phase 2). Local development uses the stdio server and needs no Cloudflare account.
+- **Cloudflare account** (optional, only needed to preview or deploy the remote server). Local development uses the stdio server and needs no Cloudflare account.
 
 ## Installation
 
@@ -88,12 +88,12 @@ in the working directory (or point `CG_MCP_CONFIG` at one). See
 pnpm test              # run all tests once
 pnpm run test:coverage # with v8 coverage report
 
-pnpm test __tests__/core/format.test.ts   # a single file
+pnpm test __tests__/core/tools.test.ts   # a single file
 ```
 
-Tests are pure unit tests (formatting, config validation) under vitest's Node
-environment. They make no network calls — the SDK is exercised only through the
-`ICommonGrantsClient` seam, which is mocked or bypassed.
+Tests are pure unit tests (tool contracts, projection, client behavior, and
+config validation) under vitest's Node environment. They make no network calls;
+tool tests exercise the SDK-backed boundary through mocked clients.
 
 ## Checks
 

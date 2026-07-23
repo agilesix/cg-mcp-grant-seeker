@@ -38,15 +38,15 @@ The `src/` tree is layered so each concern can evolve independently:
 
 - `src/core/` — the transport- and hosting-agnostic heart: the
   `ICommonGrantsClient` seam, the SDK-backed client, tool registration, and
-  formatting. It depends **only** on `zod`, `@common-grants/sdk`, and
+  opportunity projection. It depends **only** on `zod`, `@common-grants/sdk`, and
   `@modelcontextprotocol/sdk` — never on other `src/**` directories. This is
   enforced by ESLint (`no-restricted-imports`) so it stays extractable.
 - `src/config/` — the source registry: types, Zod validation, the
   `defineConfig` helper, built-in defaults, and the jiti-based config loader.
   Depends on `src/core/` for shared types.
 - `src/stdio.ts` — the local (stdio) entrypoint.
-- `src/worker.ts` — the remote (Cloudflare Workers) entrypoint. The **only**
-  file allowed to import `@cloudflare/workers-types`.
+- `src/worker.ts` — the remote (Cloudflare Workers) entrypoint using the MCP
+  SDK's Web-standard Streamable HTTP transport.
 
 Always import through a directory's `index.ts` public surface; do not deep-import
 across `src/<dir>/` boundaries.
@@ -63,9 +63,10 @@ search fan-out picks it up automatically.
 ### Adding or changing a tool
 
 Tools live in [`src/core/tools.ts`](src/core/tools.ts) and are registered on the
-`McpServer` by `registerTools`. Keep tool logic behind the `ICommonGrantsClient`
-interface rather than calling `@common-grants/sdk` directly, so SDK upgrades stay
-isolated to `src/core/client.ts`.
+`McpServer` by `registerTools`. Keep network behavior behind the
+`ICommonGrantsClient` interface rather than calling the SDK client directly.
+Tool contracts and projections may import SDK schemas and extension helpers so
+their types remain aligned with the installed SDK.
 
 ### Tool annotations
 
