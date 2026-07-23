@@ -2,7 +2,6 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ApplicantTypeOptionsEnum } from '@common-grants/sdk/schemas';
 import { z } from 'zod';
 import { catalogFieldsValue, catalogOutputSchema } from './catalog-fields.js';
-import { formatOpportunityDetail, formatOpportunitySummary } from './format.js';
 import type { ICommonGrantsClient, Opportunity, SearchParams, SearchResult } from './types.js';
 
 /** The base CommonGrants opportunity statuses (see {@link OpportunityStatus}). */
@@ -123,7 +122,7 @@ type Source = z.infer<typeof sourceObjectSchema>;
 type OpportunitySummary = z.infer<typeof opportunitySummaryObjectSchema>;
 type OpportunityDetail = z.infer<typeof opportunityDetailObjectSchema>;
 
-type SearchOutcome = z.infer<typeof searchResultSchema> & { text: string };
+type SearchOutcome = z.infer<typeof searchResultSchema>;
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -255,7 +254,6 @@ async function searchOne(
     const result = await client.searchOpportunities(params);
     const items = result.items ?? [];
     const pagination = paginationValue(result, params.page ?? 1);
-    const { page, totalPages } = pagination;
     if (items.length === 0) {
       const total = result.paginationInfo.totalItems ?? null;
       return {
@@ -266,15 +264,9 @@ async function searchOne(
         pagination,
         opportunities: [],
         error: null,
-        text:
-          total === 0
-            ? `**${client.label}**: no results`
-            : `**${client.label}**: page ${page} has no results${total === null ? '' : ` (${total} total)`}`,
       };
     }
     const total = result.paginationInfo.totalItems ?? null;
-    const formatted = items.map((opp, i) => formatOpportunitySummary(opp, i)).join('\n\n');
-    const pageText = totalPages === null ? `page ${page}` : `page ${page} of ${totalPages}`;
     return {
       source: sourceValue(client),
       status: 'success',
@@ -283,7 +275,6 @@ async function searchOne(
       pagination,
       opportunities: items.map((opportunity) => opportunitySummary(opportunity, client)),
       error: null,
-      text: `**${client.label}** (${pageText}; showing ${items.length}${total === null ? '' : ` of ${total}`})\n\n${formatted}`,
     };
   } catch (err) {
     const message = errorMessage(err);
@@ -295,7 +286,6 @@ async function searchOne(
       pagination: null,
       opportunities: [],
       error: message,
-      text: `**${client.label}**: error — ${message}`,
     };
   }
 }
@@ -332,16 +322,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
     async () => {
       const structuredContent = { sources: clients.map(sourceValue) };
       return {
-        content: [
-          {
-            type: 'text',
-            text: [
-              'Available grant sources:\n',
-              ...clients.map((c) => `- **${c.name}**: ${c.label}`),
-              '\nAll sources implement the CommonGrants protocol, so the same tools work across every one.',
-            ].join('\n'),
-          },
-        ],
+        content: [],
         structuredContent,
       };
     },
@@ -390,11 +371,9 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
       const targets = source ? [byName.get(source)!] : clients;
       const params: SearchParams = { query, statuses, page, pageSize: limit };
       const results = await Promise.all(targets.map((client) => searchOne(client, params)));
-      const structuredContent = {
-        sources: results.map(({ text: _text, ...result }) => result),
-      };
+      const structuredContent = { sources: results };
       return {
-        content: [{ type: 'text', text: results.map(({ text }) => text).join('\n\n---\n\n') }],
+        content: [],
         structuredContent,
         isError: results.every(({ status }) => status === 'error'),
       };
@@ -432,7 +411,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
       try {
         const opp = await client.getOpportunity(id);
         return {
-          content: [{ type: 'text', text: formatOpportunityDetail(opp, client.label, 500) }],
+          content: [],
           structuredContent: {
             source: sourceValue(client),
             status: 'success' as const,
@@ -443,12 +422,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
       } catch (err) {
         const message = errorMessage(err);
         return {
-          content: [
-            {
-              type: 'text',
-              text: `${client.label}: could not retrieve ${id} — ${message}`,
-            },
-          ],
+          content: [],
           structuredContent: {
             source: sourceValue(client),
             status: 'error' as const,

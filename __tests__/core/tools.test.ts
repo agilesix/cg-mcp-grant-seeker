@@ -87,6 +87,7 @@ describe('MCP tool result contracts', () => {
     expect(searchSchema).toContain('"const":"error"');
 
     const result = await client.callTool({ name: 'list_grant_sources', arguments: {} });
+    expect(result.content).toEqual([]);
     expect(result.structuredContent).toEqual({
       sources: [{ name: 'federal', label: 'federal grants' }],
     });
@@ -216,12 +217,7 @@ describe('MCP tool result contracts', () => {
         },
       ],
     });
-    if (!('content' in result)) throw new Error('Expected an immediate tool result');
-    const content = result.content as unknown[];
-    expect(content[0]).toMatchObject({
-      type: 'text',
-      text: expect.stringContaining('page 2 of 3'),
-    });
+    expect(result.content).toEqual([]);
   });
 
   it('passes bounded default pagination to every source', async () => {
@@ -334,12 +330,7 @@ describe('MCP tool result contracts', () => {
         },
       ],
     });
-    if (!('content' in result)) throw new Error('Expected an immediate tool result');
-    const content = result.content as unknown[];
-    expect(content[0]).toMatchObject({
-      type: 'text',
-      text: expect.stringContaining('page 3 has no results (4 total)'),
-    });
+    expect(result.content).toEqual([]);
   });
 
   it('represents unknown totals and continuation without guessing', async () => {
@@ -619,12 +610,7 @@ describe('MCP tool result contracts', () => {
     });
 
     expect(result.isError).toBeUndefined();
-    if (!('content' in result)) throw new Error('Expected an immediate tool result');
-    const content = result.content as unknown[];
-    expect(content[0]).toMatchObject({
-      type: 'text',
-      text: expect.stringContaining(`${'A'.repeat(500)}…`),
-    });
+    expect(result.content).toEqual([]);
     expect(result.structuredContent).toMatchObject({
       source: { name: 'federal', label: 'federal grants' },
       status: 'success',
