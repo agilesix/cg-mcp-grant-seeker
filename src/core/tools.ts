@@ -409,7 +409,10 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
         'Pass the `source` and `id` together from a search result; IDs are source-scoped.',
         'Includes core fields plus reusable CommonGrants catalog fields for agency, contact,',
         'additional information, and eligibility. Treat null as unknown or unavailable, not',
-        'as a negative answer. Warnings identify malformed catalog data.',
+        'as a negative answer. `closeDate` is source-provided and can be an administrative',
+        'horizon for a rolling or continuous program rather than a fixed application cutoff.',
+        'Event times are timezone-unspecified. Verify ambiguous deadlines at `originalSourceUrl`.',
+        'Warnings identify malformed catalog data.',
       ].join(' '),
       inputSchema: {
         id: z.string().describe('The opportunity ID'),
