@@ -45,19 +45,44 @@ const opportunityDetailSchema = {
   postDate: eventSchema,
 };
 
+const successfulSearchSchema = z.object({
+  source: z.object(sourceSchema),
+  status: z.literal('success'),
+  returned: z.number().int().positive(),
+  total: z.number().int().positive(),
+  opportunities: z.array(z.object(opportunitySummarySchema)).min(1),
+  error: z.null(),
+});
+
+const emptySearchSchema = z.object({
+  source: z.object(sourceSchema),
+  status: z.literal('empty'),
+  returned: z.literal(0),
+  total: z.number().int().nonnegative(),
+  opportunities: z.array(z.object(opportunitySummarySchema)).length(0),
+  error: z.null(),
+});
+
+const failedSearchSchema = z.object({
+  source: z.object(sourceSchema),
+  status: z.literal('error'),
+  returned: z.literal(0),
+  total: z.null(),
+  opportunities: z.array(z.object(opportunitySummarySchema)).length(0),
+  error: z.string(),
+});
+
+const searchResultSchema = z.discriminatedUnion('status', [
+  successfulSearchSchema,
+  emptySearchSchema,
+  failedSearchSchema,
+]);
+
 type Source = z.infer<z.ZodObject<typeof sourceSchema>>;
 type OpportunitySummary = z.infer<z.ZodObject<typeof opportunitySummarySchema>>;
 type OpportunityDetail = z.infer<z.ZodObject<typeof opportunityDetailSchema>>;
 
-interface SearchOutcome {
-  source: Source;
-  status: 'success' | 'empty' | 'error';
-  returned: number;
-  total: number | null;
-  opportunities: OpportunitySummary[];
-  error: string | null;
-  text: string;
-}
+type SearchOutcome = z.infer<typeof searchResultSchema> & { text: string };
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -238,16 +263,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
         limit: z.number().int().min(1).max(25).default(5).describe('Max results per source'),
       },
       outputSchema: {
-        sources: z.array(
-          z.object({
-            source: z.object(sourceSchema),
-            status: z.enum(['success', 'empty', 'error']),
-            returned: z.number().int().nonnegative(),
-            total: z.number().int().nonnegative().nullable(),
-            opportunities: z.array(z.object(opportunitySummarySchema)),
-            error: z.string().nullable(),
-          }),
-        ),
+        sources: z.array(searchResultSchema),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -270,7 +286,8 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
     'get_opportunity',
     {
       title: 'Get grant opportunity',
-      description: 'Get the full details of a specific grant opportunity by ID from one source.',
+      description:
+        'Get selected normalized details for a specific grant opportunity by ID from one source.',
       inputSchema: {
         id: z.string().describe('The opportunity ID'),
         source: sourceEnum.describe('Which source the opportunity belongs to'),
@@ -288,7 +305,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
       try {
         const opp = await client.getOpportunity(id);
         return {
-          content: [{ type: 'text', text: formatOpportunityDetail(opp, client.label) }],
+          content: [{ type: 'text', text: formatOpportunityDetail(opp, client.label, 500) }],
           structuredContent: {
             source: sourceValue(client),
             status: 'success' as const,

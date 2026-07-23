@@ -61,18 +61,29 @@ export function formatOpportunitySummary(opp: Opportunity, index: number): strin
     .join('\n');
 }
 
-/** A full detail view for a single opportunity. */
-export function formatOpportunityDetail(opp: Opportunity, sourceLabel: string): string {
+function truncate(value: string | null | undefined, maxLength?: number): string | undefined {
+  if (!value) return undefined;
+  if (maxLength === undefined || value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength).trimEnd()}…`;
+}
+
+/** A readable detail view for a single opportunity. */
+export function formatOpportunityDetail(
+  opp: Opportunity,
+  sourceLabel: string,
+  descriptionMaxLength?: number,
+): string {
   const maxAward = formatMoney(opp.funding?.maxAwardAmount);
   const minAward = formatMoney(opp.funding?.minAwardAmount);
   const closes = formatEventDate(opp.keyDates?.closeDate);
   const posted = formatEventDate(opp.keyDates?.postDate);
+  const description = truncate(opp.description, descriptionMaxLength);
   return [
     `**${opp.title ?? opp.id}**`,
     `Source: ${sourceLabel}`,
     `ID: ${opp.id}`,
     opp.status?.value && `Status: ${opp.status.value}`,
-    opp.description && `\n${opp.description}`,
+    description && `\n${description}`,
     maxAward && `\nMax award: ${maxAward}`,
     minAward && `Min award: ${minAward}`,
     closes && `Close date: ${closes}`,

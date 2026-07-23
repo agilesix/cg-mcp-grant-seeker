@@ -69,4 +69,15 @@ describe('formatOpportunityDetail', () => {
     expect(text).toContain('Close date: 2026-09-01');
     expect(text).toContain('Posted: 2026-06-01');
   });
+
+  it('can bound the description while leaving normalized detail available elsewhere', () => {
+    const longDescription = {
+      ...opp,
+      description: 'A'.repeat(100),
+    } as Opportunity;
+    const bounded = formatOpportunityDetail(longDescription, 'Federal', 20);
+
+    expect(bounded).toContain(`\n${'A'.repeat(20)}…`);
+    expect(bounded).not.toContain('A'.repeat(21));
+  });
 });

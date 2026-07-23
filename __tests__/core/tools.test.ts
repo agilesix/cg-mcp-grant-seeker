@@ -75,6 +75,12 @@ describe('MCP tool result contracts', () => {
     const tools = await client.listTools();
     expect(tools.tools).toHaveLength(3);
     expect(tools.tools.every((tool) => tool.outputSchema?.type === 'object')).toBe(true);
+    const searchSchema = JSON.stringify(
+      tools.tools.find(({ name }) => name === 'search_opportunities')?.outputSchema,
+    );
+    expect(searchSchema).toContain('"const":"success"');
+    expect(searchSchema).toContain('"const":"empty"');
+    expect(searchSchema).toContain('"const":"error"');
 
     const result = await client.callTool({ name: 'list_grant_sources', arguments: {} });
     expect(result.structuredContent).toEqual({
@@ -94,7 +100,7 @@ describe('MCP tool result contracts', () => {
     });
 
     expect(result.isError).toBe(false);
-    expect(result.structuredContent).toMatchObject({
+    expect(result.structuredContent).toEqual({
       sources: [
         {
           source: { name: 'federal', label: 'federal grants' },
@@ -178,6 +184,34 @@ describe('MCP tool result contracts', () => {
     });
   });
 
+  it('marks a targeted search failure as a tool error', async () => {
+    const client = await connect([
+      fakeClient('federal', async () => {
+        throw new Error('federal unavailable');
+      }),
+      fakeClient('california', async () => searchResult([opportunity])),
+    ]);
+
+    const result = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toEqual({
+      sources: [
+        {
+          source: { name: 'federal', label: 'federal grants' },
+          status: 'error',
+          returned: 0,
+          total: null,
+          opportunities: [],
+          error: 'federal unavailable',
+        },
+      ],
+    });
+  });
+
   it('marks a targeted retrieval failure as a tool error', async () => {
     const client = await connect([
       fakeClient(
@@ -204,7 +238,18 @@ describe('MCP tool result contracts', () => {
   });
 
   it('returns structured opportunity detail for a successful retrieval', async () => {
-    const client = await connect([fakeClient('federal', async () => searchResult([]))]);
+    const completeDescription = 'A'.repeat(1_000);
+    const detailedOpportunity = {
+      ...opportunity,
+      description: completeDescription,
+    } as Opportunity;
+    const client = await connect([
+      fakeClient(
+        'federal',
+        async () => searchResult([]),
+        async () => detailedOpportunity,
+      ),
+    ]);
 
     const result = await client.callTool({
       name: 'get_opportunity',
@@ -212,13 +257,19 @@ describe('MCP tool result contracts', () => {
     });
 
     expect(result.isError).toBeUndefined();
+    if (!('content' in result)) throw new Error('Expected an immediate tool result');
+    const content = result.content as unknown[];
+    expect(content[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining(`${'A'.repeat(500)}…`),
+    });
     expect(result.structuredContent).toMatchObject({
       source: { name: 'federal', label: 'federal grants' },
       status: 'success',
       opportunity: {
         source: { name: 'federal', label: 'federal grants' },
         id: 'opp-1',
-        description: 'Funds job training programs.',
+        description: completeDescription,
         minAward: { amount: '10000', currency: 'USD' },
         postDate: { type: 'singleDate', date: '2026-06-01' },
       },
