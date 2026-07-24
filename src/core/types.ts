@@ -45,6 +45,8 @@ export interface SourceConfig {
   label: string;
   /** Base URL of the CommonGrants API. The SDK appends /common-grants/... paths. */
   baseUrl: string;
+  /** Optional stable provider-page prefix; the opportunity ID is appended to it. */
+  opportunityPageBaseUrl?: string;
   /** Optional auth. Omit for public sources (PA, CA). */
   auth?: AuthConfig;
   /** Plugin that extends parsing and search behavior for this source. */
@@ -72,6 +74,7 @@ export interface SearchParams {
 export interface ICommonGrantsClient {
   readonly name: string;
   readonly label: string;
+  readonly opportunityPageBaseUrl?: string;
   searchOpportunities(params: SearchParams): Promise<SearchResult>;
   getOpportunity(id: string): Promise<Opportunity>;
 }

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod3';
 import type { Plugin } from '@common-grants/sdk/extensions';
 
 const authSchema = z.discriminatedUnion('type', [
@@ -26,6 +26,7 @@ const sourceSchema = z.object({
     .regex(/^[a-z0-9_-]+$/, 'source name must be lowercase alphanumeric, dashes, or underscores'),
   label: z.string().min(1),
   baseUrl: z.string().url(),
+  opportunityPageBaseUrl: z.string().url().optional(),
   auth: authSchema.optional(),
   plugin: pluginSchema.optional(),
   isDefault: z.boolean().optional(),

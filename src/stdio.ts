@@ -13,7 +13,7 @@ import { createServer } from './core/index.js';
 
 async function main(): Promise<void> {
   const config = await loadConfig();
-  const server = createServer(config.sources);
+  const server = createServer(config.sources, { grantResultsView: false });
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from 'skybridge/server';
 import { OpportunityBaseSchema } from '@common-grants/sdk/schemas';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { registerTools } from '../../src/core/tools.js';
@@ -50,10 +50,12 @@ function fakeClient(
   name: string,
   search: () => Promise<SearchResult>,
   get: () => Promise<Opportunity> = async () => opportunity,
+  opportunityPageBaseUrl?: string,
 ): ICommonGrantsClient {
   return {
     name,
     label: `${name} grants`,
+    opportunityPageBaseUrl,
     searchOpportunities: vi.fn(search),
     getOpportunity: vi.fn(get),
   };
@@ -63,7 +65,7 @@ const openConnections: Array<{ client: Client; server: McpServer }> = [];
 
 async function connect(clients: ICommonGrantsClient[]): Promise<Client> {
   const server = new McpServer({ name: 'test-server', version: '1.0.0' });
-  registerTools(server, clients);
+  registerTools(server, clients, { grantResultsView: false });
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'test-client', version: '1.0.0' });
@@ -83,11 +85,33 @@ afterEach(async () => {
 });
 
 describe('MCP tool result contracts', () => {
+  it('attaches the grant flow view only when the HTTP host enables it', () => {
+    const definitions: Array<Record<string, unknown>> = [];
+    const server = {
+      registerTool(definition: Record<string, unknown>, _handler: unknown) {
+        definitions.push(definition);
+      },
+    } as unknown as McpServer;
+
+    registerTools(server, [fakeClient('ca', async () => searchResult([]))], {
+      grantResultsView: true,
+    });
+
+    expect(definitions.find(({ name }) => name === 'search_opportunities')?.view).toBeUndefined();
+    expect(definitions.find(({ name }) => name === 'present_opportunity_shortlist')?.view).toEqual({
+      component: 'grant-results',
+      description:
+        'Review one final grant shortlist assembled from the assistant’s completed research.',
+      prefersBorder: false,
+    });
+    expect(definitions.find(({ name }) => name === 'get_opportunity')?.view).toBeUndefined();
+  });
+
   it('advertises output schemas and returns structured source data', async () => {
     const client = await connect([fakeClient('federal', async () => searchResult([]))]);
 
     const tools = await client.listTools();
-    expect(tools.tools).toHaveLength(3);
+    expect(tools.tools).toHaveLength(4);
     expect(tools.tools.every((tool) => tool.outputSchema?.type === 'object')).toBe(true);
     const searchSchema = JSON.stringify(
       tools.tools.find(({ name }) => name === 'search_opportunities')?.outputSchema,
@@ -120,6 +144,14 @@ describe('MCP tool result contracts', () => {
       name: 'get_opportunity',
       arguments: { source: 'federal', id: OPPORTUNITY_ID },
     });
+    const shortlist = await client.callTool({
+      name: 'present_opportunity_shortlist',
+      arguments: {
+        opportunities: [{ source: 'federal', id: OPPORTUNITY_ID }],
+        searchesRun: 3,
+        queries: ['workforce', '"job training"'],
+      },
+    });
 
     expect(search.structuredContent).toMatchObject({
       sources: [
@@ -150,6 +182,133 @@ describe('MCP tool result contracts', () => {
         createdAt: '2026-05-01T12:00:00.000Z',
         lastModifiedAt: '2026-06-01T12:00:00.000Z',
       },
+    });
+    expect(shortlist.structuredContent).toMatchObject({
+      searchesRun: 3,
+      queries: ['workforce', 'job training'],
+      items: [
+        {
+          source: { name: 'federal' },
+          id: OPPORTUNITY_ID,
+          status: 'success',
+          opportunity: {
+            id: OPPORTUNITY_ID,
+            keyDates: {
+              postDate: { date: '2026-06-01' },
+              closeDate: { date: '2026-09-01' },
+            },
+            createdAt: '2026-05-01T12:00:00.000Z',
+            lastModifiedAt: '2026-06-01T12:00:00.000Z',
+          },
+          providerPageUrl: null,
+          error: null,
+        },
+      ],
+    });
+  });
+
+  it('deduplicates shortlist references and preserves per-candidate errors', async () => {
+    const federal = fakeClient(
+      'federal',
+      async () => searchResult([]),
+      async () => opportunity,
+    );
+    const california = fakeClient(
+      'california',
+      async () => searchResult([]),
+      async () => {
+        throw new Error('Candidate unavailable');
+      },
+    );
+    const client = await connect([federal, california]);
+
+    const result = await client.callTool({
+      name: 'present_opportunity_shortlist',
+      arguments: {
+        opportunities: [
+          { source: 'federal', id: OPPORTUNITY_ID },
+          { source: 'federal', id: OPPORTUNITY_ID },
+          { source: 'california', id: 'ca-1' },
+        ],
+        searchesRun: 8,
+        queries: ['youth homelessness', 'youth homelessness'],
+      },
+    });
+
+    expect(federal.getOpportunity).toHaveBeenCalledTimes(1);
+    expect(california.getOpportunity).toHaveBeenCalledTimes(1);
+    expect(result.isError).toBe(false);
+    expect(result.structuredContent).toMatchObject({
+      searchesRun: 8,
+      queries: ['youth homelessness'],
+      items: [
+        { id: OPPORTUNITY_ID, status: 'success', providerPageUrl: null, error: null },
+        {
+          id: 'ca-1',
+          status: 'error',
+          opportunity: null,
+          error: 'Candidate unavailable',
+        },
+      ],
+    });
+  });
+
+  it('preserves complete SDK opportunity data in the presentation response', async () => {
+    const completeOpportunity = OpportunityBaseSchema.parse({
+      ...opportunity,
+      source: 'https://example.gov/opportunities/workforce',
+      acceptedApplicantTypes: [{ value: 'government_state' }],
+      keyDates: {
+        ...opportunity.keyDates,
+        otherDates: {
+          questionsDue: {
+            eventType: 'singleDate',
+            name: 'Questions due',
+            date: '2026-07-15',
+          },
+        },
+      },
+      customFields: {
+        agency: {
+          name: 'agency',
+          fieldType: 'object',
+          value: { code: 'DOL', name: 'Department of Labor' },
+        },
+        sourceSpecific: {
+          name: 'sourceSpecific',
+          fieldType: 'object',
+          value: { retained: true, nested: { value: 42 } },
+        },
+      },
+    }) as Opportunity;
+    const client = await connect([
+      fakeClient(
+        'federal',
+        async () => searchResult([]),
+        async () => completeOpportunity,
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'present_opportunity_shortlist',
+      arguments: {
+        opportunities: [{ source: 'federal', id: OPPORTUNITY_ID }],
+      },
+    });
+
+    expect(result.structuredContent).toEqual({
+      items: [
+        {
+          source: { name: 'federal', label: 'federal grants' },
+          id: OPPORTUNITY_ID,
+          status: 'success',
+          opportunity: onWire(completeOpportunity),
+          providerPageUrl: 'https://example.gov/opportunities/workforce',
+          error: null,
+        },
+      ],
+      searchesRun: null,
+      queries: [],
     });
   });
 
@@ -227,6 +386,26 @@ describe('MCP tool result contracts', () => {
       ],
     });
     expect(result.content).toEqual([]);
+  });
+
+  it('removes enclosing quotation marks from agent-generated search queries', async () => {
+    const federal = fakeClient('federal', async () => searchResult([opportunity]));
+    const client = await connect([federal]);
+
+    await client.callTool({
+      name: 'search_opportunities',
+      arguments: {
+        source: 'federal',
+        query: '"education for homeless children and youth"',
+      },
+    });
+
+    expect(federal.searchOpportunities).toHaveBeenCalledWith({
+      query: 'education for homeless children and youth',
+      statuses: ['open', 'forecasted'],
+      page: 1,
+      pageSize: 5,
+    });
   });
 
   it('preserves search fields needed for list-level filtering without detail calls', async () => {
@@ -756,6 +935,33 @@ describe('MCP tool result contracts', () => {
       status: 'success',
       opportunity: onWire(detailedOpportunity),
       error: null,
+    });
+  });
+
+  it('constructs a provider page URL when the source declares a stable route', async () => {
+    const client = await connect([
+      fakeClient(
+        'federal',
+        async () => searchResult([]),
+        async () => opportunity,
+        'https://simpler.grants.gov/opportunity/',
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'present_opportunity_shortlist',
+      arguments: {
+        opportunities: [{ source: 'federal', id: OPPORTUNITY_ID }],
+      },
+    });
+
+    expect(result.structuredContent).toMatchObject({
+      items: [
+        {
+          id: OPPORTUNITY_ID,
+          providerPageUrl: `https://simpler.grants.gov/opportunity/${OPPORTUNITY_ID}`,
+        },
+      ],
     });
   });
 

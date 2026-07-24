@@ -52,14 +52,20 @@ which require a hosted server — see ADR 002).
    mutations, per-user state, authentication, or server-initiated streaming
    require sessions.
 
-5. **Generic, annotated tools.** `list_grant_sources`, `search_opportunities`,
-   and `get_opportunity` mirror the SDK's opportunity resource group. Search may
-   target one source or omit `source` to fan out across all sources; retrieval
-   requires the source-scoped ID and an explicit source. Every tool carries MCP
+5. **Generic, annotated research plus bounded presentation.**
+   `list_grant_sources`, `search_opportunities`, and `get_opportunity` mirror
+   the SDK's opportunity resource group. Search may target one source or omit
+   `source` to fan out across all sources; retrieval requires the source-scoped
+   ID and an explicit source. The research tools preserve every opportunity
+   field returned by the corresponding SDK method; the SDK/API owns the
+   evolving distinction between search-summary and detail data.
+   `present_opportunity_shortlist` resolves at most
+   eight final source-scoped references after iterative agent research, giving
+   visual hosts one coherent result instead of one card per intermediate
+   search. Its structured result also preserves the complete SDK opportunity;
+   the attached view chooses a concise display subset. Every tool carries MCP
    annotations (`readOnlyHint`, `openWorldHint`) required by both marketplaces.
-   The MCP preserves every opportunity field returned by the corresponding SDK
-   method. The SDK/API, rather than the MCP, owns the evolving distinction
-   between search-summary and detail data. SDK 0.6.1 also owns protocol-safe
+   SDK 0.6.1 also owns protocol-safe
    plain-date JSON serialization, so the MCP transport boundary uses ordinary
    JSON serialization rather than recognizing date fields by key name.
 

@@ -2,6 +2,9 @@ node_modules/
 dist/
 coverage/
 .wrangler/
+.skybridge/
+.vercel/
+*.tsbuildinfo
 .dev.vars
 *.log
 .DS_Store

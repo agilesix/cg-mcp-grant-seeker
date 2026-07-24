@@ -19,11 +19,12 @@ source you register.
 
 ## Tools
 
-| Tool                   | What it does                                                          |
-| ---------------------- | --------------------------------------------------------------------- |
-| `list_grant_sources`   | Lists the registered CommonGrants sources                             |
-| `search_opportunities` | Searches bounded pages from one source or fans out across all sources |
-| `get_opportunity`      | Fetches the complete SDK-validated opportunity from a named source    |
+| Tool                            | What it does                                                          |
+| ------------------------------- | --------------------------------------------------------------------- |
+| `list_grant_sources`            | Lists the registered CommonGrants sources                             |
+| `search_opportunities`          | Searches bounded pages from one source or fans out across all sources |
+| `get_opportunity`               | Fetches the complete SDK-validated opportunity from a named source    |
+| `present_opportunity_shortlist` | Resolves and presents one bounded final shortlist after research      |
 
 All tools are read-only and carry the MCP annotations (`readOnlyHint`,
 `openWorldHint`) the Claude and OpenAI marketplaces require.
@@ -96,7 +97,7 @@ src/
 ├── core/          # transport- & host-agnostic: ICommonGrantsClient seam,
 │   │              # SDK-backed client and lossless tool registration
 │   ├── client.ts  #   constructs and calls @common-grants/sdk clients
-│   ├── tools.ts   #   list_grant_sources / search_opportunities / get_opportunity
+│   ├── tools.ts   #   research tools plus final shortlist presentation
 │   ├── server.ts  #   createServer(sources) → wired McpServer
 │   └── types.ts   #   SDK-derived domain types and the client seam
 ├── config/        # data-driven source registry (types, Zod schema,

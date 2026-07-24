@@ -100,6 +100,7 @@ describe('loadConfig defaults', () => {
     });
     const federal = config.sources.find((s) => s.name === 'federal');
     expect(federal?.auth).toEqual({ type: 'apiKey', key: 'test-key' });
+    expect(federal?.opportunityPageBaseUrl).toBe('https://simpler.grants.gov/opportunity/');
   });
 
   it('leaves the federal key undefined when the env var is absent', async () => {

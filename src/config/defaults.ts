@@ -14,6 +14,7 @@ export function defaultSources(federalApiToken?: string): SourceConfig[] {
       name: 'federal',
       label: 'Federal (Simpler.Grants.gov)',
       baseUrl: 'https://api.simpler.grants.gov',
+      opportunityPageBaseUrl: 'https://simpler.grants.gov/opportunity/',
       auth: { type: 'apiKey', key: federalApiToken },
       isDefault: true,
       plugin: FederalPlugin,
