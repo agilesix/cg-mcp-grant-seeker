@@ -7,6 +7,8 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      '.skybridge/**',
+      '.vercel/**',
       '.wrangler/**',
       'node_modules/**',
       'coverage/**',

@@ -1,6 +1,6 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ApplicantTypeOptionsEnum } from '@common-grants/sdk/schemas';
-import { z } from 'zod';
+import type { McpServer } from 'skybridge/server';
+import { z } from 'zod3';
 import { catalogFieldsValue, catalogOutputSchema } from './catalog-fields.js';
 import type { ICommonGrantsClient, Opportunity, SearchParams, SearchResult } from './types.js';
 
@@ -86,11 +86,56 @@ const searchResultSchema = z.object({
   error: z.string().nullable(),
 });
 
-type Source = z.infer<typeof sourceObjectSchema>;
-type OpportunitySummary = z.infer<typeof opportunitySummaryObjectSchema>;
-type OpportunityDetail = z.infer<typeof opportunityDetailObjectSchema>;
+export type Source = z.infer<typeof sourceObjectSchema>;
+export type OpportunitySummary = z.infer<typeof opportunitySummaryObjectSchema>;
+export type OpportunityDetail = z.infer<typeof opportunityDetailObjectSchema>;
+export type SearchOutcome = z.infer<typeof searchResultSchema>;
 
-type SearchOutcome = z.infer<typeof searchResultSchema>;
+export interface SearchToolInput {
+  query?: string;
+  statuses?: Array<(typeof STATUS_VALUES)[number]>;
+  source?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface SearchToolOutput {
+  sources: SearchOutcome[];
+}
+
+export interface GetOpportunityToolInput {
+  id: string;
+  source: string;
+}
+
+export interface GetOpportunityToolOutput {
+  source: Source;
+  status: 'success' | 'error';
+  opportunity: OpportunityDetail | null;
+  error: string | null;
+}
+
+export interface RegisterToolsOptions {
+  grantResultsView?: boolean;
+}
+
+/**
+ * Keeps Skybridge's deeply generic registration signature at this boundary.
+ * CommonGrants currently supplies Zod 3 schemas while Skybridge's build CLI
+ * uses Zod 4; inferring across both during emit can exhaust TypeScript's heap.
+ * Runtime registration and the public schemas are unchanged.
+ */
+function registerTool<TInput>(
+  server: McpServer,
+  config: Record<string, unknown>,
+  handler: (input: TInput) => Promise<unknown>,
+): void {
+  const register = server.registerTool.bind(server) as unknown as (
+    definition: Record<string, unknown>,
+    callback: (input: TInput) => Promise<unknown>,
+  ) => void;
+  register(config, handler);
+}
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -170,12 +215,18 @@ function opportunityDetail(
   opportunity: Opportunity,
   client: ICommonGrantsClient,
 ): OpportunityDetail {
+  const providerPageUrl =
+    opportunity.source ??
+    (client.opportunityPageBaseUrl
+      ? new URL(encodeURIComponent(opportunity.id), client.opportunityPageBaseUrl).toString()
+      : null);
+
   return {
     ...opportunitySummary(opportunity, client),
     description: opportunity.description ?? null,
     minAward: moneyValue(opportunity.funding?.minAwardAmount),
     postDate: eventValue(opportunity.keyDates?.postDate),
-    originalSourceUrl: opportunity.source ?? null,
+    originalSourceUrl: providerPageUrl,
     acceptedApplicantTypes:
       opportunity.acceptedApplicantTypes?.map(({ value, customValue, description }) => ({
         value,
@@ -247,7 +298,11 @@ async function searchOne(
  * Tool annotations (readOnlyHint, openWorldHint) are required by the Claude
  * Connectors Directory and the OpenAI Apps SDK — do not drop them.
  */
-export function registerTools(server: McpServer, clients: ICommonGrantsClient[]): void {
+export function registerTools(
+  server: McpServer,
+  clients: ICommonGrantsClient[],
+  { grantResultsView = false }: RegisterToolsOptions = {},
+): void {
   if (clients.length === 0) {
     throw new Error('registerTools requires at least one configured source.');
   }
@@ -256,9 +311,10 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
   const names = clients.map((c) => c.name) as [string, ...string[]];
   const sourceEnum = z.enum(names);
 
-  server.registerTool(
-    'list_grant_sources',
+  registerTool(
+    server,
     {
+      name: 'list_grant_sources',
       title: 'List grant sources',
       description:
         'Discover the CommonGrants-compliant APIs this server can search and their source identifiers.',
@@ -277,9 +333,10 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
     },
   );
 
-  server.registerTool(
-    'search_opportunities',
+  registerTool(
+    server,
     {
+      name: 'search_opportunities',
       title: 'Search grant opportunities',
       description: [
         'Discover grant opportunities and obtain source-scoped IDs for get_opportunity.',
@@ -313,9 +370,19 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
       outputSchema: {
         sources: z.array(searchResultSchema),
       },
+      ...(grantResultsView
+        ? {
+            view: {
+              component: 'grant-results',
+              description:
+                'Scan normalized grant results and review one opportunity in a compact inline flow.',
+              prefersBorder: false,
+            },
+          }
+        : {}),
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ query, statuses, source, page, limit }) => {
+    async ({ query, statuses, source, page, limit }: SearchToolInput) => {
       const targets = source ? [byName.get(source)!] : clients;
       const params: SearchParams = { query, statuses, page, pageSize: limit };
       const results = await Promise.all(targets.map((client) => searchOne(client, params)));
@@ -328,9 +395,10 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
     },
   );
 
-  server.registerTool(
-    'get_opportunity',
+  registerTool(
+    server,
     {
+      name: 'get_opportunity',
       title: 'Get grant opportunity',
       description: [
         'Get normalized details for a specific grant opportunity by ID from one source.',
@@ -339,7 +407,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
         'additional information, and eligibility. Treat null as unknown or unavailable, not',
         'as a negative answer. `closeDate` is source-provided and can be an administrative',
         'horizon for a rolling or continuous program rather than a fixed application cutoff.',
-        'Event times are timezone-unspecified. Verify ambiguous deadlines at `originalSourceUrl`.',
+        'Event times are timezone-unspecified. When `originalSourceUrl` is present, use the provider page to verify ambiguous deadlines.',
         'Warnings identify malformed catalog data.',
       ].join(' '),
       inputSchema: {
@@ -354,7 +422,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ id, source }) => {
+    async ({ id, source }: GetOpportunityToolInput) => {
       const client = byName.get(source)!;
       try {
         const opp = await client.getOpportunity(id);

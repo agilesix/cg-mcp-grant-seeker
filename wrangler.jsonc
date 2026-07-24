@@ -3,22 +3,24 @@
   // artifact submitted to the Claude Connectors Directory and OpenAI Apps SDK.
   // The local stdio server (src/stdio.ts) does not use this.
   //
-  // The remote transport is the MCP SDK's Web-standard Streamable HTTP
-  // transport, run statelessly in src/worker.ts. This needs no Durable Object.
-  //
-  // If applications functionality (mutations, per-consumer state, auth) is
-  // added later, the upgrade path is Cloudflare's McpAgent — which WOULD need a
-  // Durable Object. Re-add a `durable_objects` binding + `migrations` entry at
-  // that point (see docs/adr/002-hosting-and-distribution.md).
+  // This experimental branch uses Skybridge's generated Cloudflare entry and
+  // serves the compiled grant-results view as static assets.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "cg-mcp-grant-seeker",
-  "main": "src/worker.ts",
+  "main": "dist/__entry.js",
   "compatibility_date": "2026-05-01",
   "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "dist/assets",
+  },
+  "define": {
+    "process.env.NODE_ENV": "\"production\"",
+  },
   "observability": {
     "enabled": true,
   },
   "vars": {
+    "SKYBRIDGE_TELEMETRY_DISABLED": "1",
     // Non-secret config can go here. The federal API key is a SECRET — set it
     // with `wrangler secret put FEDERAL_API_TOKEN`, never here.
   },

@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from 'skybridge/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { registerTools } from '../../src/core/tools.js';
 import type { ICommonGrantsClient, Opportunity, SearchResult } from '../../src/core/types.js';
@@ -41,10 +41,12 @@ function fakeClient(
   name: string,
   search: () => Promise<SearchResult>,
   get: () => Promise<Opportunity> = async () => opportunity,
+  opportunityPageBaseUrl?: string,
 ): ICommonGrantsClient {
   return {
     name,
     label: `${name} grants`,
+    opportunityPageBaseUrl,
     searchOpportunities: vi.fn(search),
     getOpportunity: vi.fn(get),
   };
@@ -54,7 +56,7 @@ const openConnections: Array<{ client: Client; server: McpServer }> = [];
 
 async function connect(clients: ICommonGrantsClient[]): Promise<Client> {
   const server = new McpServer({ name: 'test-server', version: '1.0.0' });
-  registerTools(server, clients);
+  registerTools(server, clients, { grantResultsView: false });
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'test-client', version: '1.0.0' });
@@ -74,6 +76,27 @@ afterEach(async () => {
 });
 
 describe('MCP tool result contracts', () => {
+  it('attaches the grant flow view only when the HTTP host enables it', () => {
+    const definitions: Array<Record<string, unknown>> = [];
+    const server = {
+      registerTool(definition: Record<string, unknown>, _handler: unknown) {
+        definitions.push(definition);
+      },
+    } as unknown as McpServer;
+
+    registerTools(server, [fakeClient('ca', async () => searchResult([]))], {
+      grantResultsView: true,
+    });
+
+    expect(definitions.find(({ name }) => name === 'search_opportunities')?.view).toEqual({
+      component: 'grant-results',
+      description:
+        'Scan normalized grant results and review one opportunity in a compact inline flow.',
+      prefersBorder: false,
+    });
+    expect(definitions.find(({ name }) => name === 'get_opportunity')?.view).toBeUndefined();
+  });
+
   it('advertises output schemas and returns structured source data', async () => {
     const client = await connect([fakeClient('federal', async () => searchResult([]))]);
 
@@ -726,6 +749,28 @@ describe('MCP tool result contracts', () => {
         },
       },
       error: null,
+    });
+  });
+
+  it('constructs a provider page URL when the source declares a stable route', async () => {
+    const client = await connect([
+      fakeClient(
+        'federal',
+        async () => searchResult([]),
+        async () => opportunity,
+        'https://simpler.grants.gov/opportunity/',
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'get_opportunity',
+      arguments: { source: 'federal', id: 'opp-1' },
+    });
+
+    expect(result.structuredContent).toMatchObject({
+      opportunity: {
+        originalSourceUrl: 'https://simpler.grants.gov/opportunity/opp-1',
+      },
     });
   });
 

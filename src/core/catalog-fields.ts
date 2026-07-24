@@ -1,5 +1,5 @@
 import { getCustomFieldValue } from '@common-grants/sdk/extensions';
-import { z } from 'zod';
+import { z } from 'zod3';
 import type { Opportunity } from './types.js';
 
 const nullableString = z

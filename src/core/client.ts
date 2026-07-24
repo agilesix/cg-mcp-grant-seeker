@@ -30,6 +30,7 @@ function buildAuth(auth: AuthConfig | undefined) {
 export class SdkCommonGrantsClient implements ICommonGrantsClient {
   readonly name: string;
   readonly label: string;
+  readonly opportunityPageBaseUrl?: string;
   private readonly opportunities: {
     search(args: SdkSearchArgs): Promise<SearchResult>;
     get(id: string): Promise<Opportunity>;
@@ -38,6 +39,7 @@ export class SdkCommonGrantsClient implements ICommonGrantsClient {
   constructor(source: SourceConfig) {
     this.name = source.name;
     this.label = source.label;
+    this.opportunityPageBaseUrl = source.opportunityPageBaseUrl;
     const config = { baseUrl: source.baseUrl, auth: buildAuth(source.auth) };
     const client = source.plugin ? source.plugin.getClient(config) : new Client(config);
     this.opportunities = client.opportunities as typeof this.opportunities;
