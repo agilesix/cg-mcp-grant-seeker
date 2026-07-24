@@ -1,6 +1,6 @@
 import './grant-results.css';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCallTool, useLayout, useOpenExternal, useToolInfo } from 'skybridge/web';
 import type {
   GetOpportunityToolInput,
@@ -183,25 +183,23 @@ export default function GrantResults() {
     'get_opportunity',
   );
   const pageCall = useCallTool<JsonObject<SearchToolInput>, SearchResponse>('search_opportunities');
-  const [sources, setSources] = useState<SearchOutcome[]>(
-    tool.isSuccess ? tool.output.sources : [],
-  );
+  const toolSources = tool.isSuccess ? tool.output.sources : null;
+  const hydrated = useRef(toolSources !== null);
+  const [sources, setSources] = useState<SearchOutcome[]>(toolSources ?? []);
   const [selected, setSelected] = useState<OpportunityDetail | null>(null);
   const [visiblePerSource, setVisiblePerSource] = useState(() =>
-    tool.isSuccess && tool.output.sources.length > 1 ? (maxHeight && maxHeight < 650 ? 1 : 2) : 5,
+    toolSources && toolSources.length > 1 ? (maxHeight && maxHeight < 650 ? 1 : 2) : 5,
   );
   const [detailError, setDetailError] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [loadingSource, setLoadingSource] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!tool.isSuccess) return;
-    setSources(tool.output.sources);
-    setSelected(null);
-    setVisiblePerSource(
-      tool.output.sources.length > 1 ? (maxHeight && maxHeight < 650 ? 1 : 2) : 5,
-    );
-  }, [maxHeight, tool.isSuccess, tool.output]);
+    if (!toolSources || hydrated.current) return;
+    hydrated.current = true;
+    setSources(toolSources);
+    setVisiblePerSource(toolSources.length > 1 ? (maxHeight && maxHeight < 650 ? 1 : 2) : 5);
+  }, [maxHeight, toolSources]);
 
   const resultCount = useMemo(
     () => sources.reduce((sum, source) => sum + source.opportunities.length, 0),
