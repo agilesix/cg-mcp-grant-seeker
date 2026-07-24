@@ -70,6 +70,21 @@ which require a hosted server — see ADR 002).
    tools preserve plugin data carried in `customFields`, but do not yet
    automatically expose every plugin-specific search filter.
 
+   California is the first bounded proof of this plugin path. The MCP carries a
+   local consumer plugin whose custom-field names and value schemas are derived
+   from `agilesix/cg-api-ca/src/adapter/plugin.ts`. It intentionally excludes
+   California's native source schema and bidirectional transforms: those belong
+   to the API proxy that converts native portal data, while this MCP consumes
+   the proxy's already-normalized CommonGrants responses. The plugin is attached
+   only through California's source configuration; tools contain no California
+   routing branch.
+
+   This proof does not make plugins mandatory. Federal, Pennsylvania, and
+   user-configured sources continue to use the plain SDK client, which validates
+   core fields and preserves unregistered custom fields with unknown values.
+   If a shared California plugin is later published, the local definition can
+   be replaced by an import without changing the client or tool layers.
+
 7. **Reserved default-source configuration.** `SourceConfig.isDefault` is
    retained as a reserved configuration field but is not consulted by current
    tool routing. Omitting a search source means fan-out, not selection of the

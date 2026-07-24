@@ -70,9 +70,14 @@ for the full annotated example.
 
 Each source may optionally provide an SDK `Plugin`. When present, the server
 constructs that source's client with `plugin.getClient()` so the plugin's
-compiled opportunity schema is used while parsing responses. The built-in
-federal, Pennsylvania, and California registry currently uses the base SDK
-client because those APIs already return CommonGrants-compatible data.
+compiled opportunity schema is used while parsing responses.
+
+California is the first built-in plugin proof. Its source configuration uses a
+small local consumer plugin derived from the existing `cg-api-ca` custom-field
+contract. The MCP does not copy California's native transforms because the API
+already returns CommonGrants opportunities. Federal, Pennsylvania, and
+user-configured sources continue to use the base SDK client unless their
+configuration supplies a plugin.
 
 `isDefault` is reserved source configuration and has no routing effect today.
 Omitting `source` from `search_opportunities` fans out across every configured
@@ -91,6 +96,7 @@ src/
 │   └── types.ts   #   SDK-derived domain types and the client seam
 ├── config/        # data-driven source registry (types, Zod schema,
 │                  # defineConfig, defaults, jiti loader)
+├── plugins/       # localized consumer plugins for built-in source extensions
 ├── stdio.ts       # local entrypoint (Claude Desktop, Inspector, self-hosters)
 └── worker.ts      # deployed stateless Streamable HTTP Cloudflare Worker
 ```

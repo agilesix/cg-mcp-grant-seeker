@@ -1,4 +1,5 @@
 import type { ServerConfig, SourceConfig } from './types.js';
+import { CaliforniaPlugin } from '../plugins/california.js';
 
 /**
  * The three sources the server ships with. `federalApiToken` is optional: the
@@ -23,6 +24,7 @@ export function defaultSources(federalApiToken?: string): SourceConfig[] {
       name: 'ca',
       label: 'California',
       baseUrl: 'https://ca.api.cg.a6lab.ai',
+      plugin: CaliforniaPlugin,
     },
   ];
 }

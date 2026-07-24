@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { definePlugin } from '@common-grants/sdk/extensions';
 import { loadConfig, serverConfigSchema } from '../../src/config/index.js';
+import { CaliforniaPlugin } from '../../src/plugins/california.js';
 
 const valid = {
   sources: [
@@ -103,5 +104,14 @@ describe('loadConfig defaults', () => {
     const config = await loadConfig({ env: {}, cwd: '/nonexistent-dir-xyz' });
     const federal = config.sources.find((s) => s.name === 'federal');
     expect(federal?.auth).toEqual({ type: 'apiKey', key: undefined });
+  });
+
+  it('binds only the built-in California source to its consumer plugin', async () => {
+    const config = await loadConfig({ env: {}, cwd: '/nonexistent-dir-xyz' });
+    const byName = new Map(config.sources.map((source) => [source.name, source]));
+
+    expect(byName.get('ca')?.plugin).toBe(CaliforniaPlugin);
+    expect(byName.get('federal')?.plugin).toBeUndefined();
+    expect(byName.get('pa')?.plugin).toBeUndefined();
   });
 });
