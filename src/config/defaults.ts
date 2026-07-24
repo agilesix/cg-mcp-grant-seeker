@@ -1,4 +1,7 @@
 import type { ServerConfig, SourceConfig } from './types.js';
+import { CaliforniaPlugin } from '../plugins/california.js';
+import { FederalPlugin } from '../plugins/federal.js';
+import { PennsylvaniaPlugin } from '../plugins/pennsylvania.js';
 
 /**
  * The three sources the server ships with. `federalApiToken` is optional: the
@@ -14,16 +17,19 @@ export function defaultSources(federalApiToken?: string): SourceConfig[] {
       opportunityPageBaseUrl: 'https://simpler.grants.gov/opportunity/',
       auth: { type: 'apiKey', key: federalApiToken },
       isDefault: true,
+      plugin: FederalPlugin,
     },
     {
       name: 'pa',
       label: 'Pennsylvania',
       baseUrl: 'https://pa.api.cg.a6lab.ai',
+      plugin: PennsylvaniaPlugin,
     },
     {
       name: 'ca',
       label: 'California',
       baseUrl: 'https://ca.api.cg.a6lab.ai',
+      plugin: CaliforniaPlugin,
     },
   ];
 }

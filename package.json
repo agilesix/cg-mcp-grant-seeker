@@ -31,7 +31,7 @@
     "ci": "pnpm run checks && pnpm run build && pnpm run wrangler:types && pnpm run test"
   },
   "dependencies": {
-    "@common-grants/sdk": "~0.6.0",
+    "@common-grants/sdk": "~0.6.1",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "express": "^5.2.1",
     "jiti": "^2.4.2",

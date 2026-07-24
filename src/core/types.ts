@@ -23,6 +23,20 @@ export type AuthConfig =
   | { type: 'apiKey'; key?: string; header?: string }
   | { type: 'bearer'; token?: string };
 
+/**
+ * The plugin behavior needed by a configured source.
+ *
+ * A concrete plugin's inferred schemas are intentionally more specific than
+ * the SDK's default `Plugin` generic, so storing it as `Plugin` would reject
+ * valid plugins. Erasing only the client result preserves the configuration
+ * contract while allowing any `definePlugin()` result.
+ */
+export interface SourcePlugin {
+  getClient(config?: Parameters<Plugin['getClient']>[0]): {
+    opportunities: unknown;
+  };
+}
+
 /** A single CommonGrants-compliant API the server can query. */
 export interface SourceConfig {
   /** Short, stable id used in tool arguments, e.g. "federal". */
@@ -36,7 +50,7 @@ export interface SourceConfig {
   /** Optional auth. Omit for public sources (PA, CA). */
   auth?: AuthConfig;
   /** Plugin that extends parsing and search behavior for this source. */
-  plugin?: Plugin;
+  plugin?: SourcePlugin;
   /**
    * Reserved for possible default-source behavior. Current tools do not read
    * this value: search without a source fans out, and retrieval requires one.

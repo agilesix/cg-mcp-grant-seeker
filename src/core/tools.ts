@@ -71,8 +71,6 @@ export interface RegisterToolsOptions {
   grantResultsView?: boolean;
 }
 
-const DATE_ONLY_KEYS = new Set(['date', 'startDate', 'endDate']);
-
 /**
  * Keeps Skybridge's deeply generic registration signature at this boundary.
  * CommonGrants supplies Zod 3 schemas while Skybridge's build CLI uses Zod 4;
@@ -119,21 +117,13 @@ function sourceValue(client: ICommonGrantsClient): Source {
 }
 
 /**
- * The SDK parses protocol dates and timestamps into Date objects. MCP
- * structuredContent is JSON, so serialize once at the transport boundary while
- * preserving date-only events and full UTC record timestamps.
+ * SDK parsing intentionally turns protocol dates and timestamps into Date objects.
+ * MCP structuredContent is JSON, so serialize once at the transport boundary.
+ * SDK 0.6.1 serializes protocol date-only values as YYYY-MM-DD while ordinary
+ * timestamps retain their full ISO representation.
  */
-function wireOpportunity(
-  opportunity: Awaited<ReturnType<ICommonGrantsClient['getOpportunity']>>,
-): WireOpportunity {
-  return JSON.parse(
-    JSON.stringify(opportunity, function (key, value) {
-      const original = key === '' ? value : (this as Record<string, unknown>)[key];
-      if (!(original instanceof Date)) return value;
-      const iso = original.toISOString();
-      return DATE_ONLY_KEYS.has(key) ? iso.slice(0, 10) : iso;
-    }),
-  ) as WireOpportunity;
+function wireOpportunity(opportunity: Awaited<ReturnType<ICommonGrantsClient['getOpportunity']>>) {
+  return JSON.parse(JSON.stringify(opportunity)) as WireOpportunity;
 }
 
 function providerPageUrl(

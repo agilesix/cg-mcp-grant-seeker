@@ -54,9 +54,28 @@ No host-specific persona is assumed. ChatGPT, Claude, and other MCP Apps hosts s
 - Existing data path: MCP tools → CommonGrants SDK client boundary → federal, Pennsylvania, and California APIs.
 - The built-in federal source declares Simpler.Grants.gov's stable `/opportunity/{id}` provider-page route; source-provided CommonGrants URLs take precedence for every provider.
 - Existing contracts remain authoritative for agents and headless clients.
+- Built-in federal, Pennsylvania, and California sources use standalone local SDK consumer plugins.
+- Search and detail results preserve every field supplied by the corresponding SDK operation. The API
+  and SDK—not the MCP—own the summary-versus-detail boundary.
+- SDK 0.6.1 owns protocol-safe JSON serialization for plain dates; the MCP uses ordinary JSON
+  serialization without field-name-specific date handling.
 - Skybridge packages the React views and adapts the same hooks across ChatGPT Apps and standard MCP Apps runtimes.
 - The implementation must use Skybridge abstractions and standard MCP Apps capabilities; it must not access `window.openai` or name a specific assistant provider in product copy.
 - Local Skybridge DevTools is an implementation harness, not the user journey. Final portability requires validation in a real MCP Apps client because DevTools currently mocks the Apps SDK runtime.
+
+## Consumer Plugin Integration
+
+- Each built-in source supplies its own independently replaceable local consumer plugin.
+- The plugins contain only CommonGrants custom-field definitions needed to parse normalized API
+  responses; native source schemas and transformations remain in the API adapters.
+- Core tools contain no provider-specific routing branches.
+- Registered object schemas preserve unknown nested properties so provider additions are not silently
+  deleted before a local plugin is updated.
+- Static field descriptions are omitted because SDK 0.6 materializes them into every opportunity; a
+  future field-definition surface can expose that documentation once per source.
+- The federal consumer declares the four custom filters implemented by the Simpler adapter, although
+  the current provider-neutral MCP search contract does not expose plugin-specific filters.
+- User-configured sources without plugins continue to use the plain SDK client.
 
 ## View Contracts
 

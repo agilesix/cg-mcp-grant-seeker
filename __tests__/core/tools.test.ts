@@ -26,14 +26,7 @@ const opportunity = OpportunityBaseSchema.parse({
 }) as Opportunity;
 
 function onWire(value: unknown): unknown {
-  return JSON.parse(
-    JSON.stringify(value, function (key, serialized) {
-      const original = key === '' ? serialized : (this as Record<string, unknown>)[key];
-      if (!(original instanceof Date)) return serialized;
-      const iso = original.toISOString();
-      return ['date', 'startDate', 'endDate'].includes(key) ? iso.slice(0, 10) : iso;
-    }),
-  );
+  return JSON.parse(JSON.stringify(value));
 }
 
 function searchResult(
@@ -261,7 +254,7 @@ describe('MCP tool result contracts', () => {
   });
 
   it('preserves complete SDK opportunity data in the presentation response', async () => {
-    const completeOpportunity = {
+    const completeOpportunity = OpportunityBaseSchema.parse({
       ...opportunity,
       source: 'https://example.gov/opportunities/workforce',
       acceptedApplicantTypes: [{ value: 'government_state' }],
@@ -271,7 +264,7 @@ describe('MCP tool result contracts', () => {
           questionsDue: {
             eventType: 'singleDate',
             name: 'Questions due',
-            date: new Date('2026-07-15'),
+            date: '2026-07-15',
           },
         },
       },
@@ -287,7 +280,7 @@ describe('MCP tool result contracts', () => {
           value: { retained: true, nested: { value: 42 } },
         },
       },
-    } as unknown as Opportunity;
+    }) as Opportunity;
     const client = await connect([
       fakeClient(
         'federal',

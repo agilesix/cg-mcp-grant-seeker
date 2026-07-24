@@ -71,9 +71,19 @@ for the full annotated example.
 
 Each source may optionally provide an SDK `Plugin`. When present, the server
 constructs that source's client with `plugin.getClient()` so the plugin's
-compiled opportunity schema is used while parsing responses. The built-in
-federal, Pennsylvania, and California registry currently uses the base SDK
-client because those APIs already return CommonGrants-compatible data.
+compiled opportunity schema is used while parsing responses.
+
+Federal, California, and Pennsylvania use small, standalone consumer plugins
+derived from their existing adapter custom-field contracts. The MCP does not
+copy provider-native transforms because all three APIs already return
+CommonGrants opportunities. Each local plugin can later be replaced wholesale
+by an import from a corrected published provider package. User-configured
+sources continue to use the base SDK client unless their configuration supplies
+a plugin. Consumer plugins omit static field descriptions because SDK 0.6
+otherwise repeats them in every result; descriptions should later be exposed
+once through a deduplicated field-definition surface. The federal consumer also
+declares the four custom search filters implemented by the Simpler adapter,
+although the current MCP search tool does not expose plugin filters yet.
 
 `isDefault` is reserved source configuration and has no routing effect today.
 Omitting `source` from `search_opportunities` fans out across every configured
@@ -92,6 +102,7 @@ src/
 │   └── types.ts   #   SDK-derived domain types and the client seam
 ├── config/        # data-driven source registry (types, Zod schema,
 │                  # defineConfig, defaults, jiti loader)
+├── plugins/       # localized consumer plugins for built-in source extensions
 ├── stdio.ts       # local entrypoint (Claude Desktop, Inspector, self-hosters)
 └── worker.ts      # deployed stateless Streamable HTTP Cloudflare Worker
 ```
