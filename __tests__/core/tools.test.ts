@@ -26,14 +26,7 @@ const opportunity = OpportunityBaseSchema.parse({
 }) as Opportunity;
 
 function onWire(value: unknown): unknown {
-  return JSON.parse(
-    JSON.stringify(value, function (key, serialized) {
-      const original = key === '' ? serialized : (this as Record<string, unknown>)[key];
-      if (!(original instanceof Date)) return serialized;
-      const iso = original.toISOString();
-      return ['date', 'startDate', 'endDate'].includes(key) ? iso.slice(0, 10) : iso;
-    }),
-  );
+  return JSON.parse(JSON.stringify(value));
 }
 
 function searchResult(

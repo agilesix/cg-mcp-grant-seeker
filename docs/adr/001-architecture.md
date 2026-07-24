@@ -59,7 +59,9 @@ which require a hosted server — see ADR 002).
    annotations (`readOnlyHint`, `openWorldHint`) required by both marketplaces.
    The MCP preserves every opportunity field returned by the corresponding SDK
    method. The SDK/API, rather than the MCP, owns the evolving distinction
-   between search-summary and detail data.
+   between search-summary and detail data. SDK 0.6.1 also owns protocol-safe
+   plain-date JSON serialization, so the MCP transport boundary uses ordinary
+   JSON serialization rather than recognizing date fields by key name.
 
 6. **The SDK's actual surface, verified.** As of `@common-grants/sdk@0.6`, only
    `client.opportunities` exists (`search`/`list`/`get`); `status` is an object
