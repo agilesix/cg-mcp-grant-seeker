@@ -53,6 +53,26 @@ button {
   border-bottom: 1px solid var(--line);
 }
 
+.search-disclosure {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-disclosure summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.search-disclosure ol {
+  display: grid;
+  gap: 3px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
 .app-header h1,
 .detail-header h1,
 .empty-card h1,

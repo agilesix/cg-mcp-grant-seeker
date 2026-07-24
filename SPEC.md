@@ -2,7 +2,7 @@
 
 ## Status
 
-Local Skybridge prototype. This specification records the provider-neutral product direction for the visual layer. It does not authorize deployment or change the existing three-tool agent contract.
+Skybridge prototype on an experimental pull-request preview. This specification records the provider-neutral product direction for the visual layer. It adds one presentation tool without changing the existing research-tool contracts.
 
 ## Value Proposition
 
@@ -33,20 +33,24 @@ No host-specific persona is assumed. ChatGPT, Claude, and other MCP Apps hosts s
 ## User Journey
 
 1. The user asks the assistant to find grants in natural language.
-2. The assistant calls `search_opportunities`; the app does not duplicate this with a search form.
-3. The host renders a compact inline result card:
+2. The assistant calls the headless `search_opportunities` tool as many times as needed, optionally using `get_opportunity` to investigate candidates. Intermediate searches do not render user-facing cards.
+3. The assistant deduplicates the results and calls `present_opportunity_shortlist` once with a bounded set of source-scoped opportunity references and a concise record of the searches performed.
+4. The host renders one compact inline shortlist:
    - results are stacked vertically;
    - multi-source results are grouped into vertical source sections, not columns;
-   - the initial view shows at most two results per source when several sources were searched, or five for a targeted source;
+   - the initial view shows at most two results per source when several sources are represented, or five for a single source;
    - each row shows title, source, status, maximum award, and close-date evidence;
-   - errors, unknowns, and omitted malformed rows remain explicit.
-4. The user chooses **Review** on one result. The search view calls the headless `get_opportunity` tool with the source-scoped ID and replaces the list with a focused detail card.
-5. The detail card shows source, status, award range, close-date evidence, applicant types, a bounded description, eligibility/contact information when present, and warnings about source verification.
-6. The user can open the provider page, when the source data includes a URL or the source configuration declares a stable opportunity-page route, or return to results. Comparison, refinement, and fit assessment continue in the host conversation rather than becoming a multi-screen app workflow.
+   - the header reports how many searches informed the shortlist;
+   - the queries are available through compact disclosure;
+   - candidate-fetch failures and unknown fields remain explicit.
+5. The user chooses **Review** on one result. Because the presentation tool returned complete details, the view replaces the list with a focused detail card without another network request.
+6. The detail card shows source, status, award range, close-date evidence, applicant types, a bounded description, eligibility/contact information when present, and warnings about source verification.
+7. The user can open the provider page, when the source data includes a URL or the source configuration declares a stable opportunity-page route, or return to results. Comparison, refinement, and fit assessment continue in the host conversation rather than becoming a multi-screen app workflow.
 
 ## Product and Technical Context
 
-- Existing MCP tools: `list_grant_sources`, `search_opportunities`, and `get_opportunity`.
+- Research tools: `list_grant_sources`, `search_opportunities`, and `get_opportunity`.
+- Presentation view: `present_opportunity_shortlist`.
 - Existing data path: MCP tools → CommonGrants SDK client boundary → federal, Pennsylvania, and California APIs.
 - The built-in federal source declares Simpler.Grants.gov's stable `/opportunity/{id}` provider-page route; source-provided CommonGrants URLs take precedence for every provider.
 - Existing contracts remain authoritative for agents and headless clients.
@@ -56,18 +60,21 @@ No host-specific persona is assumed. ChatGPT, Claude, and other MCP Apps hosts s
 
 ## View Contracts
 
-### Search results
+### Opportunity shortlist
 
 - Inline, single-purpose, compact, and vertically responsive.
 - No Kanban board, tabs, carousel, nested scrolling, fixed drawer, or fullscreen requirement.
 - Progressive disclosure: summaries first, one opportunity's details on demand.
 - At most one visible collection-level action, **Show more results**, when already-returned rows are hidden.
-- Source-specific network pagination remains available only when the search targeted one source; broad continuation should be requested conversationally to avoid hidden cross-source pagination decisions.
+- Represents the completed research result, not any individual intermediate search.
+- Accepts at most eight unique source-scoped references.
+- Reports the number of searches performed and allows the user to inspect the query list.
+- Shows an empty state only when the final shortlist itself is empty; an intermediate zero-result search never produces a view.
 
 ### Opportunity detail
 
 - Inline and focused on one opportunity within the same end-to-end discovery view.
-- Reuses `get_opportunity` structured output; the view does not fetch provider APIs directly.
+- Reuses the complete normalized detail returned by `present_opportunity_shortlist`; the view does not fetch provider APIs directly.
 - At most two primary actions: return to results when invoked from search, and open the provider page when a URL exists.
 - Long descriptions are visually bounded. The complete structured value remains available to the assistant.
 - `null` means unknown or unavailable, never “no” or “ineligible.”
@@ -76,14 +83,15 @@ No host-specific persona is assumed. ChatGPT, Claude, and other MCP Apps hosts s
 ## Provider-Neutral Architecture
 
 - Use `skybridge/server` for tool-to-view bindings.
-- Bind `search_opportunities` to the single `grant-results` view because discovery and review are states in one flow. Keep `get_opportunity` headless and call it from that view.
-- Use `useToolInfo`, `useCallTool`, `useLayout`, and `useOpenExternal` from `skybridge/web`.
+- Keep `search_opportunities` and `get_opportunity` headless so an assistant can iterate without producing intermediate user interfaces.
+- Bind only `present_opportunity_shortlist` to the `grant-results` view. Its handler resolves source-scoped references in parallel and returns complete normalized details for the bounded shortlist.
+- Use `useToolInfo`, `useLayout`, and `useOpenExternal` from `skybridge/web`.
 - Use host-provided theme and layout context and system-compatible CSS tokens with local fallbacks.
 - Avoid provider-only hooks and globals.
 - Preserve meaningful structured tool responses for clients that do not render views.
 - Treat Skybridge as tooling and an adapter, not as visible product identity.
 
-Skybridge normally recommends returning all data needed by a view up front instead of lazy-loading detail. This app retains the existing headless `get_opportunity` boundary as a deliberate exception: search summaries are already a bounded, stable agent contract, while fetching every source record's full detail would increase provider requests and response volume. The view reuses that existing backend action and does not introduce a duplicate tool or second view.
+This architecture follows Skybridge's recommendation to return all data needed by a view up front. The presentation tool fetches only the assistant's bounded final shortlist, rather than every result from every exploratory search.
 
 ## Non-Goals
 
@@ -95,10 +103,10 @@ Skybridge normally recommends returning all data needed by a view up front inste
 
 ## Acceptance Checks
 
-- Existing tool names, inputs, structured outputs, error semantics, and headless behavior remain unchanged apart from intentional view metadata on search and detail.
-- Search renders as a compact vertical experience at narrow and wide inline sizes.
-- Review loads the correct source-scoped opportunity and renders the shared detail component.
-- The visual review state reuses `get_opportunity`; direct assistant calls remain structured and headless.
+- Existing research-tool names, inputs, structured outputs, and error semantics remain unchanged and headless.
+- The assistant can perform several searches without rendering intermediate cards, then present one shortlist.
+- The shortlist renders as a compact vertical experience at narrow and wide inline sizes.
+- Review uses the correct source-scoped opportunity detail already returned by the presentation tool.
 - Provider links open through the Skybridge host abstraction.
 - Light and dark themes remain readable using host context.
 - No provider-specific runtime global or copy appears in the view.
@@ -107,5 +115,4 @@ Skybridge normally recommends returning all data needed by a view up front inste
 ## Deferred Questions
 
 - Whether a later host-mediated “Discuss eligibility” action materially improves the journey across MCP Apps clients.
-- Whether true all-source continuation needs a new conversational affordance or a bounded aggregate pagination contract.
 - Whether the visual layer should ship on the existing endpoint after validation in at least one real standard MCP Apps host.

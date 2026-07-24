@@ -86,10 +86,19 @@ const searchResultSchema = z.object({
   error: z.string().nullable(),
 });
 
+const shortlistItemSchema = z.object({
+  source: sourceObjectSchema,
+  id: z.string(),
+  status: z.enum(['success', 'error']),
+  opportunity: opportunityDetailObjectSchema.nullable(),
+  error: z.string().nullable(),
+});
+
 export type Source = z.infer<typeof sourceObjectSchema>;
 export type OpportunitySummary = z.infer<typeof opportunitySummaryObjectSchema>;
 export type OpportunityDetail = z.infer<typeof opportunityDetailObjectSchema>;
 export type SearchOutcome = z.infer<typeof searchResultSchema>;
+export type ShortlistItem = z.infer<typeof shortlistItemSchema>;
 
 export interface SearchToolInput {
   query?: string;
@@ -113,6 +122,21 @@ export interface GetOpportunityToolOutput {
   status: 'success' | 'error';
   opportunity: OpportunityDetail | null;
   error: string | null;
+}
+
+export interface PresentOpportunityShortlistToolInput {
+  opportunities: Array<{
+    id: string;
+    source: string;
+  }>;
+  searchesRun?: number;
+  queries?: string[];
+}
+
+export interface PresentOpportunityShortlistToolOutput {
+  items: ShortlistItem[];
+  searchesRun: number | null;
+  queries: string[];
 }
 
 export interface RegisterToolsOptions {
@@ -152,6 +176,13 @@ function normalizeSearchQuery(query: string | undefined): string | undefined {
 
   const unquoted = trimmed.slice(1, -1).trim();
   return unquoted || trimmed;
+}
+
+function normalizeQueries(queries: string[] | undefined): string[] {
+  const normalized = queries
+    ?.map((query) => normalizeSearchQuery(query))
+    .filter((query): query is string => Boolean(query));
+  return [...new Set(normalized ?? [])];
 }
 
 function sourceValue(client: ICommonGrantsClient): Source {
@@ -352,7 +383,9 @@ export function registerTools(
       name: 'search_opportunities',
       title: 'Search grant opportunities',
       description: [
-        'Discover grant opportunities and obtain source-scoped IDs for get_opportunity.',
+        'Headless research tool for discovering grant opportunities and obtaining source-scoped IDs.',
+        'Call repeatedly with varied plain-language queries when useful; intermediate searches do not render a user-facing card.',
+        'After research is complete, call present_opportunity_shortlist exactly once with the strongest unique candidates.',
         '',
         'Omit `source` to fan out across every source and get combined, labeled results.',
         'Provide `source` (see list_grant_sources) to target one.',
@@ -385,16 +418,6 @@ export function registerTools(
       outputSchema: {
         sources: z.array(searchResultSchema),
       },
-      ...(grantResultsView
-        ? {
-            view: {
-              component: 'grant-results',
-              description:
-                'Scan normalized grant results and review one opportunity in a compact inline flow.',
-              prefersBorder: false,
-            },
-          }
-        : {}),
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     async ({ query, statuses, source, page, limit }: SearchToolInput) => {
@@ -411,6 +434,100 @@ export function registerTools(
         content: [],
         structuredContent,
         isError: results.every(({ status }) => status === 'error'),
+      };
+    },
+  );
+
+  registerTool(
+    server,
+    {
+      name: 'present_opportunity_shortlist',
+      title: 'Present grant opportunity shortlist',
+      description: [
+        'Present one final, deduplicated grant shortlist to the user after completing research.',
+        'Call this exactly once per user request, after any search_opportunities and get_opportunity calls.',
+        'Do not call it for intermediate searches or for each query separately.',
+        'Include at most eight unique source-scoped references that are genuinely worth showing.',
+        'Use searchesRun and queries to accurately disclose the research breadth.',
+        'The server retrieves complete normalized details for the visual review experience.',
+      ].join(' '),
+      inputSchema: {
+        opportunities: z
+          .array(
+            z.object({
+              id: z.string().describe('The source-scoped opportunity ID'),
+              source: sourceEnum.describe('Which source the opportunity belongs to'),
+            }),
+          )
+          .max(8)
+          .describe('Final unique candidates to show, ordered strongest first'),
+        searchesRun: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe('Total number of search_opportunities calls used for this request'),
+        queries: z
+          .array(z.string())
+          .max(20)
+          .optional()
+          .describe('Plain-language search queries used, in research order'),
+      },
+      outputSchema: {
+        items: z.array(shortlistItemSchema),
+        searchesRun: z.number().int().nonnegative().nullable(),
+        queries: z.array(z.string()),
+      },
+      ...(grantResultsView
+        ? {
+            view: {
+              component: 'grant-results',
+              description:
+                'Review one final grant shortlist assembled from the assistant’s completed research.',
+              prefersBorder: false,
+            },
+          }
+        : {}),
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ opportunities, searchesRun, queries }: PresentOpportunityShortlistToolInput) => {
+      const uniqueReferences = [
+        ...new Map(
+          opportunities.map((reference) => [`${reference.source}:${reference.id}`, reference]),
+        ).values(),
+      ];
+      const items = await Promise.all(
+        uniqueReferences.map(async ({ id, source }): Promise<ShortlistItem> => {
+          const client = byName.get(source)!;
+          try {
+            const opportunity = await client.getOpportunity(id);
+            return {
+              source: sourceValue(client),
+              id,
+              status: 'success',
+              opportunity: opportunityDetail(opportunity, client),
+              error: null,
+            };
+          } catch (err) {
+            return {
+              source: sourceValue(client),
+              id,
+              status: 'error',
+              opportunity: null,
+              error: errorMessage(err),
+            };
+          }
+        }),
+      );
+      const structuredContent: PresentOpportunityShortlistToolOutput = {
+        items,
+        searchesRun: searchesRun ?? null,
+        queries: normalizeQueries(queries),
+      };
+      return {
+        content: [],
+        structuredContent,
+        isError: items.length > 0 && items.every(({ status }) => status === 'error'),
       };
     },
   );

@@ -88,10 +88,11 @@ describe('MCP tool result contracts', () => {
       grantResultsView: true,
     });
 
-    expect(definitions.find(({ name }) => name === 'search_opportunities')?.view).toEqual({
+    expect(definitions.find(({ name }) => name === 'search_opportunities')?.view).toBeUndefined();
+    expect(definitions.find(({ name }) => name === 'present_opportunity_shortlist')?.view).toEqual({
       component: 'grant-results',
       description:
-        'Scan normalized grant results and review one opportunity in a compact inline flow.',
+        'Review one final grant shortlist assembled from the assistant’s completed research.',
       prefersBorder: false,
     });
     expect(definitions.find(({ name }) => name === 'get_opportunity')?.view).toBeUndefined();
@@ -101,7 +102,7 @@ describe('MCP tool result contracts', () => {
     const client = await connect([fakeClient('federal', async () => searchResult([]))]);
 
     const tools = await client.listTools();
-    expect(tools.tools).toHaveLength(3);
+    expect(tools.tools).toHaveLength(4);
     expect(tools.tools.every((tool) => tool.outputSchema?.type === 'object')).toBe(true);
     const searchSchema = JSON.stringify(
       tools.tools.find(({ name }) => name === 'search_opportunities')?.outputSchema,
@@ -129,6 +130,14 @@ describe('MCP tool result contracts', () => {
       name: 'get_opportunity',
       arguments: { source: 'federal', id: 'opp-1' },
     });
+    const shortlist = await client.callTool({
+      name: 'present_opportunity_shortlist',
+      arguments: {
+        opportunities: [{ source: 'federal', id: 'opp-1' }],
+        searchesRun: 3,
+        queries: ['workforce', '"job training"'],
+      },
+    });
 
     expect(search.structuredContent).toMatchObject({
       sources: [{ status: 'success', opportunities: [{ id: 'opp-1' }] }],
@@ -136,6 +145,65 @@ describe('MCP tool result contracts', () => {
     expect(detail.structuredContent).toMatchObject({
       status: 'success',
       opportunity: { id: 'opp-1' },
+    });
+    expect(shortlist.structuredContent).toMatchObject({
+      searchesRun: 3,
+      queries: ['workforce', 'job training'],
+      items: [
+        {
+          source: { name: 'federal' },
+          id: 'opp-1',
+          status: 'success',
+          opportunity: { id: 'opp-1' },
+          error: null,
+        },
+      ],
+    });
+  });
+
+  it('deduplicates shortlist references and preserves per-candidate errors', async () => {
+    const federal = fakeClient(
+      'federal',
+      async () => searchResult([]),
+      async () => opportunity,
+    );
+    const california = fakeClient(
+      'california',
+      async () => searchResult([]),
+      async () => {
+        throw new Error('Candidate unavailable');
+      },
+    );
+    const client = await connect([federal, california]);
+
+    const result = await client.callTool({
+      name: 'present_opportunity_shortlist',
+      arguments: {
+        opportunities: [
+          { source: 'federal', id: 'opp-1' },
+          { source: 'federal', id: 'opp-1' },
+          { source: 'california', id: 'ca-1' },
+        ],
+        searchesRun: 8,
+        queries: ['youth homelessness', 'youth homelessness'],
+      },
+    });
+
+    expect(federal.getOpportunity).toHaveBeenCalledTimes(1);
+    expect(california.getOpportunity).toHaveBeenCalledTimes(1);
+    expect(result.isError).toBe(false);
+    expect(result.structuredContent).toMatchObject({
+      searchesRun: 8,
+      queries: ['youth homelessness'],
+      items: [
+        { id: 'opp-1', status: 'success', error: null },
+        {
+          id: 'ca-1',
+          status: 'error',
+          opportunity: null,
+          error: 'Candidate unavailable',
+        },
+      ],
     });
   });
 

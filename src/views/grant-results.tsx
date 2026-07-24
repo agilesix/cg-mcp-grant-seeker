@@ -1,20 +1,22 @@
 import './grant-results.css';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useCallTool, useLayout, useOpenExternal, useToolInfo } from 'skybridge/web';
+import { useLayout, useOpenExternal, useToolInfo } from 'skybridge/web';
 import type {
-  GetOpportunityToolInput,
-  GetOpportunityToolOutput,
   OpportunityDetail,
   OpportunitySummary,
-  SearchOutcome,
-  SearchToolInput,
-  SearchToolOutput,
+  PresentOpportunityShortlistToolInput,
+  PresentOpportunityShortlistToolOutput,
+  Source,
 } from '../core/tools.js';
 
 type JsonObject<T> = T & Record<string, unknown>;
-type DetailResponse = { structuredContent: JsonObject<GetOpportunityToolOutput> };
-type SearchResponse = { structuredContent: JsonObject<SearchToolOutput> };
+
+interface ShortlistSource {
+  source: Source;
+  opportunities: OpportunityDetail[];
+  errors: string[];
+}
 
 function money(value: OpportunitySummary['maxAward']): string | null {
   if (!value) return null;
@@ -39,21 +41,6 @@ function eventLabel(event: OpportunitySummary['closeDate']): string | null {
   if (event.eventType === 'singleDate') return event.date;
   if (event.eventType === 'dateRange') return `${event.startDate} – ${event.endDate}`;
   return event.details ?? event.description ?? event.name;
-}
-
-function mergePage(current: SearchOutcome[], incoming: SearchOutcome): SearchOutcome[] {
-  return current.map((source) => {
-    if (source.source.name !== incoming.source.name) return source;
-    const seen = new Set(source.opportunities.map(({ id }) => id));
-    return {
-      ...incoming,
-      opportunities: [
-        ...source.opportunities,
-        ...incoming.opportunities.filter(({ id }) => !seen.has(id)),
-      ],
-      omittedInvalidRows: source.omittedInvalidRows + incoming.omittedInvalidRows,
-    };
-  });
 }
 
 function DetailView({
@@ -176,40 +163,47 @@ function DetailView({
 export default function GrantResults() {
   const { theme, maxHeight, safeArea } = useLayout();
   const tool = useToolInfo<{
-    input: JsonObject<SearchToolInput>;
-    output: JsonObject<SearchToolOutput>;
+    input: JsonObject<PresentOpportunityShortlistToolInput>;
+    output: JsonObject<PresentOpportunityShortlistToolOutput>;
   }>();
-  const detailCall = useCallTool<JsonObject<GetOpportunityToolInput>, DetailResponse>(
-    'get_opportunity',
-  );
-  const pageCall = useCallTool<JsonObject<SearchToolInput>, SearchResponse>('search_opportunities');
-  const toolSources = tool.isSuccess ? tool.output.sources : null;
   const toolResultKey = tool.isSuccess
-    ? JSON.stringify({ input: tool.input ?? null, sources: tool.output.sources })
+    ? JSON.stringify({ input: tool.input ?? null, items: tool.output.items })
     : null;
   const hydratedResultKey = useRef(toolResultKey);
-  const [sources, setSources] = useState<SearchOutcome[]>(toolSources ?? []);
   const [selected, setSelected] = useState<OpportunityDetail | null>(null);
-  const [visiblePerSource, setVisiblePerSource] = useState(() =>
-    toolSources && toolSources.length > 1 ? (maxHeight && maxHeight < 650 ? 1 : 2) : 5,
-  );
-  const [detailError, setDetailError] = useState<string | null>(null);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [loadingSource, setLoadingSource] = useState<string | null>(null);
+  const [additionalVisible, setAdditionalVisible] = useState(0);
+  const sources = useMemo<ShortlistSource[]>(() => {
+    if (!tool.isSuccess) return [];
+    const grouped = new Map<string, ShortlistSource>();
+    for (const item of tool.output.items) {
+      const source = grouped.get(item.source.name) ?? {
+        source: item.source,
+        opportunities: [],
+        errors: [],
+      };
+      if (item.status === 'success' && item.opportunity) {
+        source.opportunities.push(item.opportunity);
+      } else {
+        source.errors.push(item.error ?? `Unable to load opportunity ${item.id}.`);
+      }
+      grouped.set(item.source.name, source);
+    }
+    return [...grouped.values()];
+  }, [tool]);
 
   useEffect(() => {
-    if (!toolSources || !toolResultKey || hydratedResultKey.current === toolResultKey) return;
+    if (!toolResultKey || hydratedResultKey.current === toolResultKey) return;
     hydratedResultKey.current = toolResultKey;
-    setSources(toolSources);
     setSelected(null);
-    setDetailError(null);
-    setVisiblePerSource(toolSources.length > 1 ? (maxHeight && maxHeight < 650 ? 1 : 2) : 5);
-  }, [maxHeight, toolResultKey, toolSources]);
+    setAdditionalVisible(0);
+  }, [toolResultKey]);
 
   const resultCount = useMemo(
     () => sources.reduce((sum, source) => sum + source.opportunities.length, 0),
     [sources],
   );
+  const baseVisiblePerSource = sources.length > 1 ? (maxHeight && maxHeight < 650 ? 1 : 2) : 5;
+  const visiblePerSource = baseVisiblePerSource + additionalVisible;
   const hiddenCount = useMemo(
     () =>
       sources.reduce(
@@ -218,63 +212,12 @@ export default function GrantResults() {
       ),
     [sources, visiblePerSource],
   );
-  const targetedSearch = sources.length === 1;
-  const sourceWithNextPage =
-    targetedSearch && hiddenCount === 0 && sources[0]?.hasNextPage && sources[0]?.nextPage
-      ? sources[0]
-      : null;
   const rootStyle = {
     paddingTop: safeArea.insets.top,
     paddingRight: safeArea.insets.right,
     paddingBottom: safeArea.insets.bottom,
     paddingLeft: safeArea.insets.left,
   };
-
-  async function showDetail(opportunity: OpportunitySummary) {
-    setLoadingId(`${opportunity.source.name}:${opportunity.id}`);
-    setDetailError(null);
-    try {
-      const response = await detailCall.callToolAsync({
-        id: opportunity.id,
-        source: opportunity.source.name,
-      });
-      const result = response.structuredContent;
-      if (result.status === 'success' && result.opportunity) {
-        setSelected(result.opportunity);
-      } else {
-        setDetailError(result.error ?? 'Unable to retrieve this opportunity.');
-      }
-    } catch (error) {
-      setDetailError(
-        error instanceof Error ? error.message : 'Unable to retrieve this opportunity.',
-      );
-    } finally {
-      setLoadingId(null);
-    }
-  }
-
-  async function continueSource(source: SearchOutcome) {
-    if (!source.nextPage) return;
-    setLoadingSource(source.source.name);
-    try {
-      const response = await pageCall.callToolAsync({
-        query: tool.input?.query,
-        statuses: tool.input?.statuses,
-        source: source.source.name,
-        page: source.nextPage,
-        limit: tool.input?.limit ?? 5,
-      });
-      const incoming = response.structuredContent.sources[0];
-      if (incoming) {
-        setSources((current) => mergePage(current, incoming));
-        setVisiblePerSource((current) => current + incoming.opportunities.length);
-      }
-    } catch (error) {
-      setDetailError(error instanceof Error ? error.message : 'Unable to load more results.');
-    } finally {
-      setLoadingSource(null);
-    }
-  }
 
   if (tool.isPending) {
     return (
@@ -299,80 +242,87 @@ export default function GrantResults() {
     );
   }
 
-  if (sources.length === 0) {
+  if (tool.isSuccess && tool.output.items.length === 0) {
     return (
       <main className={`grant-app ${theme === 'dark' ? 'dark' : ''}`} style={rootStyle}>
-        <div className="empty-card" role={detailError ? 'alert' : undefined}>
-          <h1>Opportunity unavailable</h1>
-          <p>{detailError ?? 'No opportunity data was returned.'}</p>
+        <div className="empty-card">
+          <p className="eyebrow">Grant opportunities</p>
+          <h1>No shortlist candidates</h1>
+          <p>
+            {tool.output.searchesRun
+              ? `${tool.output.searchesRun} searches were performed, but no opportunities were selected for review.`
+              : 'No opportunities were selected for review.'}
+          </p>
         </div>
       </main>
     );
   }
 
-  const query = tool.input?.query;
+  const searchesRun = tool.isSuccess ? tool.output.searchesRun : null;
+  const queries = tool.isSuccess ? tool.output.queries : [];
 
   return (
     <main
       className={`grant-app ${theme === 'dark' ? 'dark' : ''}`}
       style={rootStyle}
-      data-llm={`Viewing ${resultCount} grant opportunity summaries across ${sources.length} sources${query ? ` for query: ${query}` : ''}`}
+      data-llm={`Viewing a final shortlist of ${resultCount} grant opportunities across ${sources.length} sources${searchesRun !== null ? ` assembled after ${searchesRun} searches` : ''}`}
     >
       <header className="app-header">
         <div>
           <p className="eyebrow">Grant opportunities</p>
-          <h1>{query ? `Results for “${query}”` : 'Search results'}</h1>
+          <h1>Opportunity shortlist</h1>
           <p>
             {resultCount} {resultCount === 1 ? 'opportunity' : 'opportunities'} from{' '}
             {sources.length} {sources.length === 1 ? 'source' : 'sources'}
+            {searchesRun !== null
+              ? ` · selected after ${searchesRun} ${searchesRun === 1 ? 'search' : 'searches'}`
+              : ''}
           </p>
         </div>
+        {queries.length > 0 && (
+          <details className="search-disclosure">
+            <summary>Searches used</summary>
+            <ol>
+              {queries.map((query, index) => (
+                <li key={`${query}:${index}`}>{query}</li>
+              ))}
+            </ol>
+          </details>
+        )}
       </header>
-
-      {detailError && (
-        <div className="error-banner" role="alert">
-          <span>{detailError}</span>
-          <button onClick={() => setDetailError(null)}>Dismiss</button>
-        </div>
-      )}
 
       <div className="source-list">
         {sources.map((source, sourceIndex) => (
-          <section
-            className="source-section"
-            key={`${source.source.name}-${source.page}-${sourceIndex}`}
-          >
+          <section className="source-section" key={`${source.source.name}-${sourceIndex}`}>
             <div className="source-heading">
               <div>
                 <h2>{source.source.label}</h2>
                 <p>
-                  {source.total ?? source.opportunities.length}{' '}
-                  {(source.total ?? source.opportunities.length) === 1 ? 'result' : 'results'}
+                  {source.opportunities.length}{' '}
+                  {source.opportunities.length === 1 ? 'candidate' : 'candidates'}
                 </p>
               </div>
-              <span className={`source-state ${source.status}`}>{source.status}</span>
+              <span className={`source-state ${source.errors.length > 0 ? 'error' : 'success'}`}>
+                {source.errors.length > 0 ? 'Partial' : 'Ready'}
+              </span>
             </div>
 
-            {source.error && <p className="source-error">{source.error}</p>}
-            {source.omittedInvalidRows > 0 && (
-              <p className="source-warning">
-                {source.omittedInvalidRows} malformed{' '}
-                {source.omittedInvalidRows === 1 ? 'record was' : 'records were'} omitted.
+            {source.errors.map((error, index) => (
+              <p className="source-error" key={`${error}:${index}`}>
+                {error}
               </p>
-            )}
-            {source.status === 'empty' && <p className="empty-state">No matching results.</p>}
+            ))}
 
             <div className="result-list">
               {source.opportunities
                 .slice(0, visiblePerSource)
-                .map((opportunity: OpportunitySummary, resultIndex) => {
+                .map((opportunity: OpportunityDetail, resultIndex) => {
                   const key = `${source.source.name}:${opportunity.id}`;
                   return (
                     <button
                       className="result-row"
                       key={`${key}:${resultIndex}`}
-                      disabled={loadingId === key}
-                      onClick={() => void showDetail(opportunity)}
+                      onClick={() => setSelected(opportunity)}
                       data-llm={`Grant result: ${opportunity.title ?? 'Untitled opportunity'}; source: ${opportunity.source.label}; ID: ${opportunity.id}`}
                     >
                       <span className="result-main">
@@ -388,9 +338,7 @@ export default function GrantResults() {
                           </span>
                         </span>
                       </span>
-                      <span className="review-label">
-                        {loadingId === key ? 'Loading…' : 'Review'}
-                      </span>
+                      <span className="review-label">Review</span>
                     </button>
                   );
                 })}
@@ -403,21 +351,9 @@ export default function GrantResults() {
         <div className="collection-action">
           <button
             className="secondary-button"
-            onClick={() => setVisiblePerSource((current) => current + 2)}
+            onClick={() => setAdditionalVisible((current) => current + 2)}
           >
             Show more results
-          </button>
-        </div>
-      )}
-
-      {sourceWithNextPage && (
-        <div className="collection-action">
-          <button
-            className="secondary-button"
-            disabled={loadingSource === sourceWithNextPage.source.name}
-            onClick={() => void continueSource(sourceWithNextPage)}
-          >
-            {loadingSource === sourceWithNextPage.source.name ? 'Loading…' : 'Load next page'}
           </button>
         </div>
       )}
