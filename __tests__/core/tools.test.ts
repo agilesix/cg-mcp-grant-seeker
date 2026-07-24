@@ -230,6 +230,26 @@ describe('MCP tool result contracts', () => {
     expect(result.content).toEqual([]);
   });
 
+  it('removes enclosing quotation marks from agent-generated search queries', async () => {
+    const federal = fakeClient('federal', async () => searchResult([opportunity]));
+    const client = await connect([federal]);
+
+    await client.callTool({
+      name: 'search_opportunities',
+      arguments: {
+        source: 'federal',
+        query: '"education for homeless children and youth"',
+      },
+    });
+
+    expect(federal.searchOpportunities).toHaveBeenCalledWith({
+      query: 'education for homeless children and youth',
+      statuses: ['open', 'forecasted'],
+      page: 1,
+      pageSize: 5,
+    });
+  });
+
   it('passes bounded default pagination to every source', async () => {
     const federal = fakeClient('federal', async () => searchResult([]));
     const california = fakeClient('california', async () => searchResult([]));

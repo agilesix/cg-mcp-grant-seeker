@@ -184,7 +184,10 @@ export default function GrantResults() {
   );
   const pageCall = useCallTool<JsonObject<SearchToolInput>, SearchResponse>('search_opportunities');
   const toolSources = tool.isSuccess ? tool.output.sources : null;
-  const hydrated = useRef(toolSources !== null);
+  const toolResultKey = tool.isSuccess
+    ? JSON.stringify({ input: tool.input ?? null, sources: tool.output.sources })
+    : null;
+  const hydratedResultKey = useRef(toolResultKey);
   const [sources, setSources] = useState<SearchOutcome[]>(toolSources ?? []);
   const [selected, setSelected] = useState<OpportunityDetail | null>(null);
   const [visiblePerSource, setVisiblePerSource] = useState(() =>
@@ -195,11 +198,13 @@ export default function GrantResults() {
   const [loadingSource, setLoadingSource] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!toolSources || hydrated.current) return;
-    hydrated.current = true;
+    if (!toolSources || !toolResultKey || hydratedResultKey.current === toolResultKey) return;
+    hydratedResultKey.current = toolResultKey;
     setSources(toolSources);
+    setSelected(null);
+    setDetailError(null);
     setVisiblePerSource(toolSources.length > 1 ? (maxHeight && maxHeight < 650 ? 1 : 2) : 5);
-  }, [maxHeight, toolSources]);
+  }, [maxHeight, toolResultKey, toolSources]);
 
   const resultCount = useMemo(
     () => sources.reduce((sum, source) => sum + source.opportunities.length, 0),

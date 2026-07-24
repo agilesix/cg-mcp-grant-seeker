@@ -141,6 +141,19 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+function normalizeSearchQuery(query: string | undefined): string | undefined {
+  const trimmed = query?.trim();
+  if (!trimmed || trimmed.length < 2) return trimmed;
+
+  const first = trimmed[0];
+  const last = trimmed.at(-1);
+  const hasEnclosingQuotes = (first === '"' && last === '"') || (first === '“' && last === '”');
+  if (!hasEnclosingQuotes) return trimmed;
+
+  const unquoted = trimmed.slice(1, -1).trim();
+  return unquoted || trimmed;
+}
+
 function sourceValue(client: ICommonGrantsClient): Source {
   return { name: client.name, label: client.label };
 }
@@ -352,7 +365,9 @@ export function registerTools(
         query: z
           .string()
           .optional()
-          .describe("Full-text search query, e.g. 'workforce development'"),
+          .describe(
+            'Plain full-text keywords, e.g. workforce development. Do not enclose the query in quotation marks; providers may treat them as literal characters.',
+          ),
         statuses: z
           .array(z.enum(STATUS_VALUES))
           .default(['open', 'forecasted'])
@@ -384,7 +399,12 @@ export function registerTools(
     },
     async ({ query, statuses, source, page, limit }: SearchToolInput) => {
       const targets = source ? [byName.get(source)!] : clients;
-      const params: SearchParams = { query, statuses, page, pageSize: limit };
+      const params: SearchParams = {
+        query: normalizeSearchQuery(query),
+        statuses,
+        page,
+        pageSize: limit,
+      };
       const results = await Promise.all(targets.map((client) => searchOne(client, params)));
       const structuredContent = { sources: results };
       return {
