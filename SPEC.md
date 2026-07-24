@@ -43,7 +43,7 @@ No host-specific persona is assumed. ChatGPT, Claude, and other MCP Apps hosts s
    - the header reports how many searches informed the shortlist;
    - the queries are available through compact disclosure;
    - candidate-fetch failures and unknown fields remain explicit.
-5. The user chooses **Review** on one result. Because the presentation tool returned complete details, the view replaces the list with a focused detail card without another network request.
+5. The user chooses **Review** on one result. Because the presentation tool returned the complete SDK-validated opportunity, the view replaces the list with a focused detail card without another network request.
 6. The detail card shows source, status, award range, close-date evidence, applicant types, a bounded description, eligibility/contact information when present, and warnings about source verification.
 7. The user can open the provider page, when the source data includes a URL or the source configuration declares a stable opportunity-page route, or return to results. Comparison, refinement, and fit assessment continue in the host conversation rather than becoming a multi-screen app workflow.
 
@@ -74,7 +74,8 @@ No host-specific persona is assumed. ChatGPT, Claude, and other MCP Apps hosts s
 ### Opportunity detail
 
 - Inline and focused on one opportunity within the same end-to-end discovery view.
-- Reuses the complete normalized detail returned by `present_opportunity_shortlist`; the view does not fetch provider APIs directly.
+- Reuses the complete SDK-validated opportunity returned by `present_opportunity_shortlist`; the view does not fetch provider APIs directly.
+- Selects a concise human display from that opportunity without narrowing the structured data available to the assistant.
 - At most two primary actions: return to results when invoked from search, and open the provider page when a URL exists.
 - Long descriptions are visually bounded. The complete structured value remains available to the assistant.
 - `null` means unknown or unavailable, never “no” or “ineligible.”
@@ -84,11 +85,12 @@ No host-specific persona is assumed. ChatGPT, Claude, and other MCP Apps hosts s
 
 - Use `skybridge/server` for tool-to-view bindings.
 - Keep `search_opportunities` and `get_opportunity` headless so an assistant can iterate without producing intermediate user interfaces.
-- Bind only `present_opportunity_shortlist` to the `grant-results` view. Its handler resolves source-scoped references in parallel and returns complete normalized details for the bounded shortlist.
+- Bind only `present_opportunity_shortlist` to the `grant-results` view. Its handler resolves source-scoped references in parallel and returns each complete SDK-validated opportunity for the bounded shortlist.
 - Use `useToolInfo`, `useLayout`, and `useOpenExternal` from `skybridge/web`.
 - Use host-provided theme and layout context and system-compatible CSS tokens with local fallbacks.
 - Avoid provider-only hooks and globals.
 - Preserve meaningful structured tool responses for clients that do not render views.
+- Keep the visual selection layer separate from the CommonGrants data contract: the API/SDK decides which fields exist, the MCP preserves them, and the view decides which fields to render.
 - Treat Skybridge as tooling and an adapter, not as visible product identity.
 
 This architecture follows Skybridge's recommendation to return all data needed by a view up front. The presentation tool fetches only the assistant's bounded final shortlist, rather than every result from every exploratory search.

@@ -1,12 +1,15 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from 'skybridge/server';
+import { OpportunityBaseSchema } from '@common-grants/sdk/schemas';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { registerTools } from '../../src/core/tools.js';
 import type { ICommonGrantsClient, Opportunity, SearchResult } from '../../src/core/types.js';
 
-const opportunity = {
-  id: 'opp-1',
+const OPPORTUNITY_ID = '11111111-1111-4111-8111-111111111111';
+
+const opportunity = OpportunityBaseSchema.parse({
+  id: OPPORTUNITY_ID,
   title: 'Workforce Development Grant',
   status: { value: 'open' },
   description: 'Funds job training programs.',
@@ -18,7 +21,20 @@ const opportunity = {
     closeDate: { eventType: 'singleDate', name: 'Close date', date: '2026-09-01' },
     postDate: { eventType: 'singleDate', name: 'Post date', date: '2026-06-01' },
   },
-} as unknown as Opportunity;
+  createdAt: '2026-05-01T12:00:00Z',
+  lastModifiedAt: '2026-06-01T12:00:00Z',
+}) as Opportunity;
+
+function onWire(value: unknown): unknown {
+  return JSON.parse(
+    JSON.stringify(value, function (key, serialized) {
+      const original = key === '' ? serialized : (this as Record<string, unknown>)[key];
+      if (!(original instanceof Date)) return serialized;
+      const iso = original.toISOString();
+      return ['date', 'startDate', 'endDate'].includes(key) ? iso.slice(0, 10) : iso;
+    }),
+  );
+}
 
 function searchResult(
   items: Opportunity[],
@@ -109,6 +125,11 @@ describe('MCP tool result contracts', () => {
     );
     expect(searchSchema).toContain('"enum":["success","empty","error"]');
     expect(searchSchema).toContain('"omittedInvalidRows"');
+    expect(searchSchema).toContain('"postDate"');
+    expect(searchSchema).toContain('"otherDates"');
+    expect(searchSchema).toContain('"createdAt"');
+    expect(searchSchema).toContain('"lastModifiedAt"');
+    expect(searchSchema).toContain('"customFields"');
 
     const result = await client.callTool({ name: 'list_grant_sources', arguments: {} });
     expect(result.content).toEqual([]);
@@ -128,23 +149,46 @@ describe('MCP tool result contracts', () => {
     });
     const detail = await client.callTool({
       name: 'get_opportunity',
-      arguments: { source: 'federal', id: 'opp-1' },
+      arguments: { source: 'federal', id: OPPORTUNITY_ID },
     });
     const shortlist = await client.callTool({
       name: 'present_opportunity_shortlist',
       arguments: {
-        opportunities: [{ source: 'federal', id: 'opp-1' }],
+        opportunities: [{ source: 'federal', id: OPPORTUNITY_ID }],
         searchesRun: 3,
         queries: ['workforce', '"job training"'],
       },
     });
 
     expect(search.structuredContent).toMatchObject({
-      sources: [{ status: 'success', opportunities: [{ id: 'opp-1' }] }],
+      sources: [
+        {
+          status: 'success',
+          opportunities: [
+            {
+              id: OPPORTUNITY_ID,
+              keyDates: {
+                postDate: { date: '2026-06-01' },
+                closeDate: { date: '2026-09-01' },
+              },
+              createdAt: '2026-05-01T12:00:00.000Z',
+              lastModifiedAt: '2026-06-01T12:00:00.000Z',
+            },
+          ],
+        },
+      ],
     });
     expect(detail.structuredContent).toMatchObject({
       status: 'success',
-      opportunity: { id: 'opp-1' },
+      opportunity: {
+        id: OPPORTUNITY_ID,
+        keyDates: {
+          postDate: { date: '2026-06-01' },
+          closeDate: { date: '2026-09-01' },
+        },
+        createdAt: '2026-05-01T12:00:00.000Z',
+        lastModifiedAt: '2026-06-01T12:00:00.000Z',
+      },
     });
     expect(shortlist.structuredContent).toMatchObject({
       searchesRun: 3,
@@ -152,9 +196,18 @@ describe('MCP tool result contracts', () => {
       items: [
         {
           source: { name: 'federal' },
-          id: 'opp-1',
+          id: OPPORTUNITY_ID,
           status: 'success',
-          opportunity: { id: 'opp-1' },
+          opportunity: {
+            id: OPPORTUNITY_ID,
+            keyDates: {
+              postDate: { date: '2026-06-01' },
+              closeDate: { date: '2026-09-01' },
+            },
+            createdAt: '2026-05-01T12:00:00.000Z',
+            lastModifiedAt: '2026-06-01T12:00:00.000Z',
+          },
+          providerPageUrl: null,
           error: null,
         },
       ],
@@ -180,8 +233,8 @@ describe('MCP tool result contracts', () => {
       name: 'present_opportunity_shortlist',
       arguments: {
         opportunities: [
-          { source: 'federal', id: 'opp-1' },
-          { source: 'federal', id: 'opp-1' },
+          { source: 'federal', id: OPPORTUNITY_ID },
+          { source: 'federal', id: OPPORTUNITY_ID },
           { source: 'california', id: 'ca-1' },
         ],
         searchesRun: 8,
@@ -196,7 +249,7 @@ describe('MCP tool result contracts', () => {
       searchesRun: 8,
       queries: ['youth homelessness'],
       items: [
-        { id: 'opp-1', status: 'success', error: null },
+        { id: OPPORTUNITY_ID, status: 'success', providerPageUrl: null, error: null },
         {
           id: 'ca-1',
           status: 'error',
@@ -204,6 +257,65 @@ describe('MCP tool result contracts', () => {
           error: 'Candidate unavailable',
         },
       ],
+    });
+  });
+
+  it('preserves complete SDK opportunity data in the presentation response', async () => {
+    const completeOpportunity = {
+      ...opportunity,
+      source: 'https://example.gov/opportunities/workforce',
+      acceptedApplicantTypes: [{ value: 'government_state' }],
+      keyDates: {
+        ...opportunity.keyDates,
+        otherDates: {
+          questionsDue: {
+            eventType: 'singleDate',
+            name: 'Questions due',
+            date: new Date('2026-07-15'),
+          },
+        },
+      },
+      customFields: {
+        agency: {
+          name: 'agency',
+          fieldType: 'object',
+          value: { code: 'DOL', name: 'Department of Labor' },
+        },
+        sourceSpecific: {
+          name: 'sourceSpecific',
+          fieldType: 'object',
+          value: { retained: true, nested: { value: 42 } },
+        },
+      },
+    } as unknown as Opportunity;
+    const client = await connect([
+      fakeClient(
+        'federal',
+        async () => searchResult([]),
+        async () => completeOpportunity,
+      ),
+    ]);
+
+    const result = await client.callTool({
+      name: 'present_opportunity_shortlist',
+      arguments: {
+        opportunities: [{ source: 'federal', id: OPPORTUNITY_ID }],
+      },
+    });
+
+    expect(result.structuredContent).toEqual({
+      items: [
+        {
+          source: { name: 'federal', label: 'federal grants' },
+          id: OPPORTUNITY_ID,
+          status: 'success',
+          opportunity: onWire(completeOpportunity),
+          providerPageUrl: 'https://example.gov/opportunities/workforce',
+          error: null,
+        },
+      ],
+      searchesRun: null,
+      queries: [],
     });
   });
 
@@ -224,22 +336,7 @@ describe('MCP tool result contracts', () => {
         {
           source: { name: 'federal', label: 'federal grants' },
           status: 'success',
-          opportunities: [
-            {
-              source: { name: 'federal', label: 'federal grants' },
-              id: 'opp-1',
-              title: 'Workforce Development Grant',
-              status: 'open',
-              maxAward: { amount: '500000', currency: 'USD' },
-              closeDate: {
-                eventType: 'singleDate',
-                name: 'Close date',
-                description: null,
-                date: '2026-09-01',
-                time: null,
-              },
-            },
-          ],
+          opportunities: [onWire(opportunity)],
           total: 1,
           page: 1,
           hasNextPage: false,
@@ -315,6 +412,60 @@ describe('MCP tool result contracts', () => {
       statuses: ['open', 'forecasted'],
       page: 1,
       pageSize: 5,
+    });
+  });
+
+  it('preserves search fields needed for list-level filtering without detail calls', async () => {
+    const searchableOpportunity = {
+      ...opportunity,
+      acceptedApplicantTypes: [{ value: 'government_state' }],
+      keyDates: {
+        ...opportunity.keyDates,
+        otherDates: {
+          questionsDue: {
+            eventType: 'singleDate',
+            name: 'Questions due',
+            date: '2026-07-15',
+          },
+        },
+      },
+      customFields: {
+        agency: {
+          name: 'agency',
+          fieldType: 'object',
+          value: { code: 'HUD', name: 'Housing and Urban Development' },
+        },
+      },
+    } as unknown as Opportunity;
+    const federal = fakeClient('federal', async () => searchResult([searchableOpportunity]));
+    const client = await connect([federal]);
+
+    const result = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal', query: 'housing' },
+    });
+
+    expect(federal.getOpportunity).not.toHaveBeenCalled();
+    expect(result.structuredContent).toMatchObject({
+      sources: [
+        {
+          opportunities: [
+            {
+              keyDates: {
+                postDate: { date: '2026-06-01' },
+                closeDate: { date: '2026-09-01' },
+                otherDates: {
+                  questionsDue: { name: 'Questions due', date: '2026-07-15' },
+                },
+              },
+              acceptedApplicantTypes: [{ value: 'government_state' }],
+              customFields: searchableOpportunity.customFields,
+              createdAt: '2026-05-01T12:00:00.000Z',
+              lastModifiedAt: '2026-06-01T12:00:00.000Z',
+            },
+          ],
+        },
+      ],
     });
   });
 
@@ -620,7 +771,7 @@ describe('MCP tool result contracts', () => {
       sources: [
         {
           status: 'success',
-          opportunities: [{ id: 'opp-1' }],
+          opportunities: [{ id: OPPORTUNITY_ID }],
           omittedInvalidRows: 1,
           error: null,
         },
@@ -697,7 +848,7 @@ describe('MCP tool result contracts', () => {
           status: 'success',
           hasNextPage: false,
           nextPage: null,
-          opportunities: [{ id: 'opp-1' }],
+          opportunities: [{ id: OPPORTUNITY_ID }],
           omittedInvalidRows: 0,
         },
       ],
@@ -781,61 +932,15 @@ describe('MCP tool result contracts', () => {
 
     const result = await client.callTool({
       name: 'get_opportunity',
-      arguments: { source: 'federal', id: 'opp-1' },
+      arguments: { source: 'federal', id: OPPORTUNITY_ID },
     });
 
     expect(result.isError).toBeUndefined();
     expect(result.content).toEqual([]);
-    expect(result.structuredContent).toMatchObject({
+    expect(result.structuredContent).toEqual({
       source: { name: 'federal', label: 'federal grants' },
       status: 'success',
-      opportunity: {
-        source: { name: 'federal', label: 'federal grants' },
-        id: 'opp-1',
-        description: completeDescription,
-        minAward: { amount: '10000', currency: 'USD' },
-        originalSourceUrl: 'https://example.gov/grants/opp-1',
-        acceptedApplicantTypes: [
-          {
-            value: 'custom',
-            customValue: 'California public agency',
-            description: 'A state or local public agency in California',
-          },
-          {
-            value: 'non_profit_with_501c3',
-            customValue: null,
-            description: null,
-          },
-        ],
-        agency: {
-          code: 'EDD',
-          name: 'Employment Development Department',
-          parentCode: null,
-          parentName: null,
-        },
-        contactInfo: {
-          name: 'Grant Office',
-          email: 'grants@example.gov',
-          phone: null,
-          description: null,
-        },
-        additionalInfo: {
-          url: 'https://example.gov/grants/opp-1/details',
-          description: null,
-        },
-        eligibilityCriteria: {
-          beneficiaryTypes: [{ code: 'EL020000', name: 'Youth' }],
-          details: 'Applicants must serve rural communities.',
-        },
-        warnings: [],
-        postDate: {
-          eventType: 'singleDate',
-          name: 'Post date',
-          description: null,
-          date: '2026-06-01',
-          time: null,
-        },
-      },
+      opportunity: onWire(detailedOpportunity),
       error: null,
     });
   });
@@ -851,14 +956,19 @@ describe('MCP tool result contracts', () => {
     ]);
 
     const result = await client.callTool({
-      name: 'get_opportunity',
-      arguments: { source: 'federal', id: 'opp-1' },
+      name: 'present_opportunity_shortlist',
+      arguments: {
+        opportunities: [{ source: 'federal', id: OPPORTUNITY_ID }],
+      },
     });
 
     expect(result.structuredContent).toMatchObject({
-      opportunity: {
-        originalSourceUrl: 'https://simpler.grants.gov/opportunity/opp-1',
-      },
+      items: [
+        {
+          id: OPPORTUNITY_ID,
+          providerPageUrl: `https://simpler.grants.gov/opportunity/${OPPORTUNITY_ID}`,
+        },
+      ],
     });
   });
 
@@ -893,31 +1003,33 @@ describe('MCP tool result contracts', () => {
 
     const result = await client.callTool({
       name: 'get_opportunity',
-      arguments: { source: 'california', id: 'opp-1' },
+      arguments: { source: 'california', id: OPPORTUNITY_ID },
     });
 
     expect(result.structuredContent).toMatchObject({
       opportunity: {
-        postDate: {
-          eventType: 'dateRange',
-          name: 'Application period',
-          description: 'Primary application period',
-          startDate: '2026-06-01',
-          startTime: '09:00:00',
-          endDate: '2026-06-30',
-          endTime: '17:00:00',
-        },
-        closeDate: {
-          eventType: 'other',
-          name: 'Rolling deadline',
-          description: 'Applications are reviewed as received',
-          details: 'Rolling until funds are exhausted',
+        keyDates: {
+          postDate: {
+            eventType: 'dateRange',
+            name: 'Application period',
+            description: 'Primary application period',
+            startDate: '2026-06-01',
+            startTime: '09:00:00',
+            endDate: '2026-06-30',
+            endTime: '17:00:00',
+          },
+          closeDate: {
+            eventType: 'other',
+            name: 'Rolling deadline',
+            description: 'Applications are reviewed as received',
+            details: 'Rolling until funds are exhausted',
+          },
         },
       },
     });
   });
 
-  it('returns explicit nulls and warns without failing on malformed catalog fields', async () => {
+  it('preserves custom fields without MCP-specific interpretation or projection', async () => {
     const malformedOpportunity = {
       ...opportunity,
       customFields: {
@@ -953,41 +1065,14 @@ describe('MCP tool result contracts', () => {
 
     const result = await client.callTool({
       name: 'get_opportunity',
-      arguments: { source: 'federal', id: 'opp-1' },
+      arguments: { source: 'federal', id: OPPORTUNITY_ID },
     });
 
     expect(result.isError).toBeUndefined();
     expect(result.structuredContent).toMatchObject({
       status: 'success',
       opportunity: {
-        originalSourceUrl: null,
-        acceptedApplicantTypes: null,
-        agency: null,
-        contactInfo: null,
-        additionalInfo: null,
-        eligibilityCriteria: null,
-        warnings: [
-          {
-            field: 'agency',
-            code: 'invalid_catalog_field',
-            message: expect.stringContaining('Expected string'),
-          },
-          {
-            field: 'contactInfo',
-            code: 'invalid_catalog_field',
-            message: expect.stringContaining('Invalid email'),
-          },
-          {
-            field: 'additionalInfo',
-            code: 'invalid_catalog_field',
-            message: expect.stringContaining('Invalid url'),
-          },
-          {
-            field: 'eligibilityCriteria',
-            code: 'invalid_catalog_field',
-            message: expect.stringContaining("Unrecognized key(s) in object: 'unexpected'"),
-          },
-        ],
+        customFields: malformedOpportunity.customFields,
       },
     });
   });
@@ -1003,15 +1088,22 @@ describe('MCP tool result contracts', () => {
 
     const result = await client.callTool({
       name: 'get_opportunity',
-      arguments: { source: 'pa', id: 'opp-1' },
+      arguments: { source: 'pa', id: OPPORTUNITY_ID },
     });
 
     expect(result.structuredContent).toMatchObject({
-      opportunity: { acceptedApplicantTypes: [], warnings: [] },
+      opportunity: { acceptedApplicantTypes: [] },
     });
   });
 
-  it('warns when a catalog field has the wrong envelope', async () => {
+  it('preserves a custom-field envelope without imposing catalog semantics', async () => {
+    const customFields = {
+      agency: {
+        name: 'notAgency',
+        fieldType: 'string',
+        value: { name: 'Department of Transportation' },
+      },
+    };
     const client = await connect([
       fakeClient(
         'ca',
@@ -1019,33 +1111,20 @@ describe('MCP tool result contracts', () => {
         async () =>
           ({
             ...opportunity,
-            customFields: {
-              agency: {
-                name: 'notAgency',
-                fieldType: 'string',
-                value: { name: 'Department of Transportation' },
-              },
-            },
+            customFields,
           }) as unknown as Opportunity,
       ),
     ]);
 
     const result = await client.callTool({
       name: 'get_opportunity',
-      arguments: { source: 'ca', id: 'opp-1' },
+      arguments: { source: 'ca', id: OPPORTUNITY_ID },
     });
 
     expect(result.structuredContent).toMatchObject({
       status: 'success',
       opportunity: {
-        agency: null,
-        warnings: [
-          {
-            field: 'agency',
-            code: 'invalid_catalog_field',
-            message: 'expected an object custom field named agency',
-          },
-        ],
+        customFields,
       },
     });
   });

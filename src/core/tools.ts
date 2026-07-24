@@ -1,8 +1,7 @@
-import { ApplicantTypeOptionsEnum } from '@common-grants/sdk/schemas';
+import { OpportunityBaseSchema } from '@common-grants/sdk/schemas';
 import type { McpServer } from 'skybridge/server';
 import { z } from 'zod3';
-import { catalogFieldsValue, catalogOutputSchema } from './catalog-fields.js';
-import type { ICommonGrantsClient, Opportunity, SearchParams, SearchResult } from './types.js';
+import type { ICommonGrantsClient, SearchParams, SearchResult } from './types.js';
 
 /** The base CommonGrants opportunity statuses (see {@link OpportunityStatus}). */
 const STATUS_VALUES = ['open', 'forecasted', 'closed', 'custom'] as const;
@@ -14,70 +13,10 @@ const sourceSchema = {
 
 const sourceObjectSchema = z.object(sourceSchema);
 
-const moneySchema = z
-  .object({
-    amount: z.string(),
-    currency: z.string().nullable(),
-  })
-  .nullable();
-
-const eventSchema = z
-  .discriminatedUnion('eventType', [
-    z.object({
-      eventType: z.literal('singleDate'),
-      name: z.string(),
-      description: z.string().nullable(),
-      date: z.string(),
-      time: z.string().nullable(),
-    }),
-    z.object({
-      eventType: z.literal('dateRange'),
-      name: z.string(),
-      description: z.string().nullable(),
-      startDate: z.string(),
-      startTime: z.string().nullable(),
-      endDate: z.string(),
-      endTime: z.string().nullable(),
-    }),
-    z.object({
-      eventType: z.literal('other'),
-      name: z.string(),
-      description: z.string().nullable(),
-      details: z.string().nullable(),
-    }),
-  ])
-  .nullable();
-
-const applicantTypeSchema = z.object({
-  value: ApplicantTypeOptionsEnum,
-  customValue: z.string().nullable(),
-  description: z.string().nullable(),
-});
-
-const opportunitySummarySchema = {
-  source: sourceObjectSchema,
-  id: z.string(),
-  title: z.string().nullable(),
-  status: z.string().nullable(),
-  maxAward: moneySchema,
-  closeDate: eventSchema,
-};
-
-const opportunitySummaryObjectSchema = z.object(opportunitySummarySchema);
-
-const opportunityDetailObjectSchema = opportunitySummaryObjectSchema.extend({
-  description: z.string().nullable(),
-  minAward: moneySchema,
-  postDate: eventSchema,
-  originalSourceUrl: z.string().url().nullable(),
-  acceptedApplicantTypes: z.array(applicantTypeSchema).nullable(),
-  ...catalogOutputSchema,
-});
-
 const searchResultSchema = z.object({
   source: sourceObjectSchema,
   status: z.enum(['success', 'empty', 'error']),
-  opportunities: z.array(opportunitySummaryObjectSchema),
+  opportunities: z.array(OpportunityBaseSchema),
   total: z.number().int().nonnegative().nullable(),
   page: z.number().int().positive(),
   hasNextPage: z.boolean().nullable(),
@@ -90,15 +29,15 @@ const shortlistItemSchema = z.object({
   source: sourceObjectSchema,
   id: z.string(),
   status: z.enum(['success', 'error']),
-  opportunity: opportunityDetailObjectSchema.nullable(),
+  opportunity: OpportunityBaseSchema.nullable(),
+  providerPageUrl: z.string().url().nullable(),
   error: z.string().nullable(),
 });
 
 export type Source = z.infer<typeof sourceObjectSchema>;
-export type OpportunitySummary = z.infer<typeof opportunitySummaryObjectSchema>;
-export type OpportunityDetail = z.infer<typeof opportunityDetailObjectSchema>;
-export type SearchOutcome = z.infer<typeof searchResultSchema>;
-export type ShortlistItem = z.infer<typeof shortlistItemSchema>;
+export type WireOpportunity = z.input<typeof OpportunityBaseSchema>;
+type SearchOutcome = z.input<typeof searchResultSchema>;
+export type ShortlistItem = z.input<typeof shortlistItemSchema>;
 
 export interface SearchToolInput {
   query?: string;
@@ -108,20 +47,9 @@ export interface SearchToolInput {
   limit?: number;
 }
 
-export interface SearchToolOutput {
-  sources: SearchOutcome[];
-}
-
 export interface GetOpportunityToolInput {
   id: string;
   source: string;
-}
-
-export interface GetOpportunityToolOutput {
-  source: Source;
-  status: 'success' | 'error';
-  opportunity: OpportunityDetail | null;
-  error: string | null;
 }
 
 export interface PresentOpportunityShortlistToolInput {
@@ -143,11 +71,12 @@ export interface RegisterToolsOptions {
   grantResultsView?: boolean;
 }
 
+const DATE_ONLY_KEYS = new Set(['date', 'startDate', 'endDate']);
+
 /**
  * Keeps Skybridge's deeply generic registration signature at this boundary.
- * CommonGrants currently supplies Zod 3 schemas while Skybridge's build CLI
- * uses Zod 4; inferring across both during emit can exhaust TypeScript's heap.
- * Runtime registration and the public schemas are unchanged.
+ * CommonGrants supplies Zod 3 schemas while Skybridge's build CLI uses Zod 4;
+ * inferring across both during emit can exhaust TypeScript's heap.
  */
 function registerTool<TInput>(
   server: McpServer,
@@ -189,96 +118,34 @@ function sourceValue(client: ICommonGrantsClient): Source {
   return { name: client.name, label: client.label };
 }
 
-function dateValue(value: Date | string | null | undefined): string | null {
-  if (value == null || value === '') return null;
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString().slice(0, 10);
+/**
+ * The SDK parses protocol dates and timestamps into Date objects. MCP
+ * structuredContent is JSON, so serialize once at the transport boundary while
+ * preserving date-only events and full UTC record timestamps.
+ */
+function wireOpportunity(
+  opportunity: Awaited<ReturnType<ICommonGrantsClient['getOpportunity']>>,
+): WireOpportunity {
+  return JSON.parse(
+    JSON.stringify(opportunity, function (key, value) {
+      const original = key === '' ? value : (this as Record<string, unknown>)[key];
+      if (!(original instanceof Date)) return value;
+      const iso = original.toISOString();
+      return DATE_ONLY_KEYS.has(key) ? iso.slice(0, 10) : iso;
+    }),
+  ) as WireOpportunity;
 }
 
-function eventValue(event: NonNullable<Opportunity['keyDates']>['closeDate'] | undefined) {
-  if (!event) return null;
-  if (event.eventType === 'singleDate') {
-    const date = dateValue(event.date);
-    return date
-      ? {
-          eventType: 'singleDate' as const,
-          name: event.name,
-          description: event.description ?? null,
-          date,
-          time: event.time ?? null,
-        }
-      : null;
-  }
-  if (event.eventType === 'dateRange') {
-    const startDate = dateValue(event.startDate);
-    const endDate = dateValue(event.endDate);
-    if (!startDate || !endDate) return null;
-    return {
-      eventType: 'dateRange' as const,
-      name: event.name,
-      description: event.description ?? null,
-      startDate,
-      startTime: event.startTime ?? null,
-      endDate,
-      endTime: event.endTime ?? null,
-    };
-  }
-  return {
-    eventType: 'other' as const,
-    name: event.name,
-    description: event.description ?? null,
-    details: event.details ?? null,
-  };
-}
-
-function moneyValue(
-  money: { amount?: string | number | null; currency?: string | null } | null | undefined,
-) {
-  if (money?.amount == null || money.amount === '') return null;
-  return {
-    amount: String(money.amount),
-    currency: money.currency ?? null,
-  };
-}
-
-function opportunitySummary(
-  opportunity: Opportunity,
+function providerPageUrl(
+  opportunity: Awaited<ReturnType<ICommonGrantsClient['getOpportunity']>>,
   client: ICommonGrantsClient,
-): OpportunitySummary {
-  return {
-    source: sourceValue(client),
-    id: opportunity.id,
-    title: opportunity.title ?? null,
-    status: opportunity.status?.value ?? null,
-    maxAward: moneyValue(opportunity.funding?.maxAwardAmount),
-    closeDate: eventValue(opportunity.keyDates?.closeDate),
-  };
-}
-
-function opportunityDetail(
-  opportunity: Opportunity,
-  client: ICommonGrantsClient,
-): OpportunityDetail {
-  const providerPageUrl =
+): string | null {
+  return (
     opportunity.source ??
     (client.opportunityPageBaseUrl
       ? new URL(encodeURIComponent(opportunity.id), client.opportunityPageBaseUrl).toString()
-      : null);
-
-  return {
-    ...opportunitySummary(opportunity, client),
-    description: opportunity.description ?? null,
-    minAward: moneyValue(opportunity.funding?.minAwardAmount),
-    postDate: eventValue(opportunity.keyDates?.postDate),
-    originalSourceUrl: providerPageUrl,
-    acceptedApplicantTypes:
-      opportunity.acceptedApplicantTypes?.map(({ value, customValue, description }) => ({
-        value,
-        customValue: customValue ?? null,
-        description: description ?? null,
-      })) ?? null,
-    ...catalogFieldsValue(opportunity),
-  };
+      : null)
+  );
 }
 
 function paginationValue(result: SearchResult, requestedPage: number) {
@@ -312,14 +179,13 @@ async function searchOne(
     return {
       source: sourceValue(client),
       status: items.length === 0 ? 'empty' : 'success',
-      opportunities: items.map((opportunity) => opportunitySummary(opportunity, client)),
+      opportunities: items.map(wireOpportunity),
       total,
       ...pagination,
       omittedInvalidRows: result.errors?.length ?? 0,
       error: null,
     };
   } catch (err) {
-    const message = errorMessage(err);
     return {
       source: sourceValue(client),
       status: 'error',
@@ -329,18 +195,15 @@ async function searchOne(
       hasNextPage: null,
       nextPage: null,
       omittedInvalidRows: 0,
-      error: message,
+      error: errorMessage(err),
     };
   }
 }
 
 /**
- * Registers all grant tools on an McpServer. The set of sources is data-driven:
- * adding a source to the registry automatically extends the `source` argument
- * on every tool and the fan-out behavior of search.
- *
- * Tool annotations (readOnlyHint, openWorldHint) are required by the Claude
- * Connectors Directory and the OpenAI Apps SDK — do not drop them.
+ * Registers all grant tools on an McpServer. The research tools preserve the
+ * SDK contracts; the optional presentation tool adds a view without narrowing
+ * the opportunity data available to the assistant.
  */
 export function registerTools(
   server: McpServer,
@@ -351,8 +214,8 @@ export function registerTools(
     throw new Error('registerTools requires at least one configured source.');
   }
 
-  const byName = new Map(clients.map((c) => [c.name, c]));
-  const names = clients.map((c) => c.name) as [string, ...string[]];
+  const byName = new Map(clients.map((client) => [client.name, client]));
+  const names = clients.map((client) => client.name) as [string, ...string[]];
   const sourceEnum = z.enum(names);
 
   registerTool(
@@ -368,13 +231,10 @@ export function registerTools(
       },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async () => {
-      const structuredContent = { sources: clients.map(sourceValue) };
-      return {
-        content: [],
-        structuredContent,
-      };
-    },
+    async () => ({
+      content: [],
+      structuredContent: { sources: clients.map(sourceValue) },
+    }),
   );
 
   registerTool(
@@ -383,7 +243,9 @@ export function registerTools(
       name: 'search_opportunities',
       title: 'Search grant opportunities',
       description: [
-        'Headless research tool for discovering grant opportunities and obtaining source-scoped IDs.',
+        'Headless research tool that returns every field provided by the SDK search result.',
+        'The MCP does not redefine the summary boundary: nested fields, timestamps, and',
+        'customFields returned by the source are preserved without projection.',
         'Call repeatedly with varied plain-language queries when useful; intermediate searches do not render a user-facing card.',
         'After research is complete, call present_opportunity_shortlist exactly once with the strongest unique candidates.',
         '',
@@ -429,10 +291,9 @@ export function registerTools(
         pageSize: limit,
       };
       const results = await Promise.all(targets.map((client) => searchOne(client, params)));
-      const structuredContent = { sources: results };
       return {
         content: [],
-        structuredContent,
+        structuredContent: { sources: results },
         isError: results.every(({ status }) => status === 'error'),
       };
     },
@@ -444,12 +305,11 @@ export function registerTools(
       name: 'present_opportunity_shortlist',
       title: 'Present grant opportunity shortlist',
       description: [
-        'Present one final, deduplicated grant shortlist to the user after completing research.',
-        'Call this exactly once per user request, after any search_opportunities and get_opportunity calls.',
-        'Do not call it for intermediate searches or for each query separately.',
-        'Include at most eight unique source-scoped references that are genuinely worth showing.',
-        'Use searchesRun and queries to accurately disclose the research breadth.',
-        'The server retrieves complete normalized details for the visual review experience.',
+        'Present one final, deduplicated grant shortlist after completing research.',
+        'Call this exactly once per user request, not for intermediate searches.',
+        'Include at most eight unique source-scoped references worth showing.',
+        'The server retrieves and preserves each complete SDK-validated opportunity.',
+        'The attached view displays a concise subset without narrowing structuredContent.',
       ].join(' '),
       inputSchema: {
         opportunities: z
@@ -505,7 +365,8 @@ export function registerTools(
               source: sourceValue(client),
               id,
               status: 'success',
-              opportunity: opportunityDetail(opportunity, client),
+              opportunity: wireOpportunity(opportunity),
+              providerPageUrl: providerPageUrl(opportunity, client),
               error: null,
             };
           } catch (err) {
@@ -514,6 +375,7 @@ export function registerTools(
               id,
               status: 'error',
               opportunity: null,
+              providerPageUrl: null,
               error: errorMessage(err),
             };
           }
@@ -538,14 +400,13 @@ export function registerTools(
       name: 'get_opportunity',
       title: 'Get grant opportunity',
       description: [
-        'Get normalized details for a specific grant opportunity by ID from one source.',
+        'Get the complete SDK-validated CommonGrants opportunity by ID from one source.',
         'Pass the `source` and `id` together from a search result; IDs are source-scoped.',
-        'Includes core fields plus reusable CommonGrants catalog fields for agency, contact,',
-        'additional information, and eligibility. Treat null as unknown or unavailable, not',
-        'as a negative answer. `closeDate` is source-provided and can be an administrative',
+        'The original nested protocol shape, timestamps, and customFields are preserved.',
+        'Treat null as unknown or unavailable, not as a negative answer.',
+        '`keyDates.closeDate` is source-provided and can be an administrative',
         'horizon for a rolling or continuous program rather than a fixed application cutoff.',
-        'Event times are timezone-unspecified. When `originalSourceUrl` is present, use the provider page to verify ambiguous deadlines.',
-        'Warnings identify malformed catalog data.',
+        'Event times are timezone-unspecified. Verify ambiguous deadlines at `source`.',
       ].join(' '),
       inputSchema: {
         id: z.string().describe('The opportunity ID'),
@@ -554,7 +415,7 @@ export function registerTools(
       outputSchema: {
         source: sourceObjectSchema,
         status: z.enum(['success', 'error']),
-        opportunity: opportunityDetailObjectSchema.nullable(),
+        opportunity: OpportunityBaseSchema.nullable(),
         error: z.string().nullable(),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
@@ -562,25 +423,24 @@ export function registerTools(
     async ({ id, source }: GetOpportunityToolInput) => {
       const client = byName.get(source)!;
       try {
-        const opp = await client.getOpportunity(id);
+        const opportunity = await client.getOpportunity(id);
         return {
           content: [],
           structuredContent: {
             source: sourceValue(client),
             status: 'success' as const,
-            opportunity: opportunityDetail(opp, client),
+            opportunity: wireOpportunity(opportunity),
             error: null,
           },
         };
       } catch (err) {
-        const message = errorMessage(err);
         return {
           content: [],
           structuredContent: {
             source: sourceValue(client),
             status: 'error' as const,
             opportunity: null,
-            error: message,
+            error: errorMessage(err),
           },
           isError: true,
         };
