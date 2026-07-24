@@ -1,5 +1,6 @@
 import type { ServerConfig, SourceConfig } from './types.js';
 import { CaliforniaPlugin } from '../plugins/california.js';
+import { FederalPlugin } from '../plugins/federal.js';
 import { PennsylvaniaPlugin } from '../plugins/pennsylvania.js';
 
 /**
@@ -15,6 +16,7 @@ export function defaultSources(federalApiToken?: string): SourceConfig[] {
       baseUrl: 'https://api.simpler.grants.gov',
       auth: { type: 'apiKey', key: federalApiToken },
       isDefault: true,
+      plugin: FederalPlugin,
     },
     {
       name: 'pa',

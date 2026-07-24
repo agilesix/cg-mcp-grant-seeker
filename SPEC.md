@@ -2,7 +2,8 @@
 
 ## Status
 
-Existing headless MCP server with bounded California and Pennsylvania consumer-plugin proofs. This
+Existing headless MCP server with bounded federal, California, and Pennsylvania consumer-plugin
+proofs. This
 specification records the source-integration contract without introducing a visual interface or
 changing the current research-tool contract.
 
@@ -46,13 +47,13 @@ Core actions:
 - Search and detail results preserve every field supplied by the corresponding SDK operation. The API
   and SDK—not the MCP—own the summary-versus-detail boundary.
 
-## State Plugin Proofs
+## Consumer Plugin Proofs
 
-California and Pennsylvania are bounded proofs of plugin-backed source consumption:
+Federal, California, and Pennsylvania are bounded proofs of plugin-backed source consumption:
 
-- Each built-in state source supplies its own standalone local consumer plugin.
-- Field names and value schemas are derived from the existing `cg-api-ca` and `cg-api-pa` adapter
-  contracts.
+- Each built-in source supplies its own standalone local consumer plugin.
+- Field names and value schemas are derived from the existing `cg-api-ca`, `cg-api-pa`, and
+  `@common-grants/cg-grants-gov` adapter contracts.
 - Each plugin contains only CommonGrants custom-field definitions needed to parse its normalized API
   response.
 - Native source schemas and bidirectional transformations remain in the API proxies.
@@ -63,18 +64,19 @@ California and Pennsylvania are bounded proofs of plugin-backed source consumpti
   per source or response through a deduplicated field-definition surface.
 - Registered object schemas preserve unknown nested properties so provider additions are not deleted
   before the consumer plugin is updated.
-- Federal and user-configured sources continue to work without plugins.
+- The federal consumer also declares the four custom search filters implemented by the Simpler
+  adapter. The current MCP search tool does not expose plugin filters yet.
+- User-configured sources continue to work without plugins.
 
 ## Tool Contracts
 
 - Existing tool names, inputs, structured outputs, pagination, and error semantics remain unchanged.
-- State plugin parsing is an internal source-boundary improvement.
+- Consumer-plugin parsing is an internal source-boundary improvement.
 - Complete standard and custom fields remain available to the assistant.
 - One malformed search row does not discard valid rows; raw malformed rows are not returned.
 
 ## Non-Goals
 
-- Adding a federal plugin binding.
 - Publishing California or Pennsylvania plugin packages.
 - Exposing plugin capability discovery or custom-filter inputs.
 - Copying provider-native transformations into the MCP.
@@ -83,16 +85,18 @@ California and Pennsylvania are bounded proofs of plugin-backed source consumpti
 
 ## Acceptance Checks
 
-- California and Pennsylvania search and detail calls are constructed through `plugin.getClient()`.
-- Live state responses parse with representative shared, `ca*`, and `pa*` custom fields intact.
+- Federal, California, and Pennsylvania search and detail calls are constructed through
+  `plugin.getClient()`.
+- Live built-in-source responses parse with representative shared and provider-specific custom
+  fields intact.
 - Unregistered custom fields still pass through.
-- Federal and a configured no-plugin source retain the plain SDK-client path.
+- A configured no-plugin source retains the plain SDK-client path.
 - No state conditional is introduced in core tools.
 - Each provider requires one localized plugin module and one source-configuration reference.
 - Tests, lint, formatting, type checking, build, and live validation pass.
 
 ## Follow-up Decision
 
-After the proofs, decide whether to publish/extract the state plugins, use the published federal
-plugin to prove custom filters, or stop if further integration does not create meaningful consumer
-value.
+After the proofs, decide whether to publish/extract the state plugins, replace the local federal
+consumer with the corrected published package, expose plugin filters through a provider-neutral MCP
+contract, or stop if further integration does not create meaningful consumer value.

@@ -70,24 +70,28 @@ which require a hosted server — see ADR 002).
    tools preserve plugin data carried in `customFields`, but do not yet
    automatically expose every plugin-specific search filter.
 
-   California and Pennsylvania are bounded proofs of this plugin path. The MCP
-   carries standalone consumer plugins whose custom-field names and value
-   schemas are derived from `agilesix/cg-api-ca/src/adapter/plugin.ts` and
+   Federal, California, and Pennsylvania are bounded proofs of this plugin
+   path. The MCP carries standalone consumer plugins whose custom-field names
+   and value schemas are derived from `common-grants/ts-cg-grants-gov`,
+   `agilesix/cg-api-ca/src/adapter/plugin.ts`, and
    `agilesix/cg-api-pa/src/adapter/plugin.ts`. They intentionally exclude native
-   source schemas and bidirectional transforms: those belong to the API proxies
-   that convert provider data, while this MCP consumes already-normalized
-   CommonGrants responses. Each plugin is attached only through its source
-   configuration; tools contain no state-specific routing branches.
+   source schemas and bidirectional transforms: those belong to the API
+   adapters that convert provider data, while this MCP consumes
+   already-normalized CommonGrants responses. Each plugin is attached only
+   through its source configuration; tools contain no provider-specific routing
+   branches.
 
-   The two local plugins remain self-contained even where their adapters define
-   identical ecosystem fields. The MCP does not introduce a third shared-field
-   contract; if formal provider plugins are published, each local file can be
-   replaced wholesale by its package import. Consumer definitions omit static
+   The three local plugins remain self-contained even where their adapters
+   define identical ecosystem fields. The MCP does not introduce another
+   shared-field contract; each local file can be replaced wholesale by a
+   corrected formal package import. Consumer definitions omit static
    descriptions because SDK 0.6 repeats them in every parsed record; a future
    field-definition surface should expose that documentation once rather than
    inflate each result. Registered object schemas use passthrough behavior to
-   preserve provider additions that the local contract does not yet know.
-   Federal and user-configured sources continue to use the plain SDK client,
+   preserve provider additions that the local contract does not yet know. The
+   federal plugin also declares the Simpler adapter's four custom filters, but
+   the generic MCP search contract does not expose plugin-specific filters yet.
+   User-configured sources without plugins continue to use the plain SDK client,
    which validates core fields and preserves unregistered custom fields with
    unknown values.
 
