@@ -81,6 +81,7 @@ No host-specific persona is assumed. ChatGPT, Claude, and other MCP Apps hosts s
 - Descriptions that contain provider-authored HTML are converted to safe readable text before display; raw markup is never rendered or shown to the user.
 - Optional fact cards, rows, sections, disclosures, and provider actions are omitted when their source values are unavailable. Remaining facts reflow to use the available width.
 - A sparse opportunity remains a compact, intentional card anchored by title, status, and source. It may include one concise unknown-data note rather than empty sections or repeated “Not provided” placeholders.
+- The default inline state keeps headline facts, the bounded description, applicants, funding, and both actions visible. Eligibility, dates/contact, deadline guidance, and source-specific fields share one **More opportunity details** disclosure so rich records do not push actions outside the host's inline frame.
 - Standard CommonGrants fields are preferred for display. Recognized plugin/custom fields supplement them without becoming required for the layout.
 - `null` means unknown or unavailable, never “no” or “ineligible.”
 - A source-provided close date can be an administrative horizon rather than a fixed deadline; verification with the grant provider remains explicit.

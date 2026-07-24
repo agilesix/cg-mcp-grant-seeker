@@ -472,19 +472,24 @@ button {
   font-weight: 700;
 }
 
-.detail-disclosure .detail-rows {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 18px;
+.detail-disclosure-content {
+  display: grid;
+  gap: 16px;
+  padding: 14px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.detail-disclosure-content h2 {
   margin: 0;
-  padding: 0 12px 13px;
+  font-size: 14px;
 }
 
-.detail-disclosure .detail-rows > div {
-  display: block;
-}
-
-.detail-disclosure .detail-rows dt {
-  margin-bottom: 3px;
+.detail-disclosure-content section > p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .detail-actions {
@@ -558,8 +563,7 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .detail-grid,
-  .detail-disclosure .detail-rows {
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 

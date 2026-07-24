@@ -87,6 +87,12 @@ function DetailView({
   );
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const status = opportunity.status.value;
+  const hasMoreDetails =
+    Boolean(detail.eligibilityNotes) ||
+    detail.dates.length > 0 ||
+    detail.contact.length > 0 ||
+    detail.showDeadlineNote ||
+    detail.additionalDetails.length > 0;
 
   return (
     <section
@@ -151,30 +157,6 @@ function DetailView({
         </div>
       )}
 
-      {detail.eligibilityNotes && (
-        <section className="detail-section">
-          <h2>Eligibility notes</h2>
-          <p>{detail.eligibilityNotes}</p>
-        </section>
-      )}
-
-      {(detail.dates.length > 0 || detail.contact.length > 0) && (
-        <div className="detail-grid detail-section">
-          {detail.dates.length > 0 && (
-            <section>
-              <h2>Key dates</h2>
-              <DetailRows rows={detail.dates} />
-            </section>
-          )}
-          {detail.contact.length > 0 && (
-            <section>
-              <h2>Contact</h2>
-              <DetailRows rows={detail.contact} />
-            </section>
-          )}
-        </div>
-      )}
-
       {!detail.hasDecisionDetails && (
         <p className="sparse-note">
           The source did not provide additional funding, deadline, eligibility, or contact details.
@@ -182,17 +164,48 @@ function DetailView({
         </p>
       )}
 
-      {detail.showDeadlineNote && (
-        <p className="source-note">
-          Dates and requirements are provided by the grant source and may change. A displayed close
-          date may be an administrative horizon for a rolling or continuous program.
-        </p>
-      )}
-
-      {detail.additionalDetails.length > 0 && (
+      {hasMoreDetails && (
         <details className="detail-disclosure">
-          <summary>Additional source details</summary>
-          <DetailRows rows={detail.additionalDetails} />
+          <summary>More opportunity details</summary>
+          <div className="detail-disclosure-content">
+            {detail.eligibilityNotes && (
+              <section>
+                <h2>Eligibility notes</h2>
+                <p>{detail.eligibilityNotes}</p>
+              </section>
+            )}
+
+            {(detail.dates.length > 0 || detail.contact.length > 0) && (
+              <div className="detail-grid">
+                {detail.dates.length > 0 && (
+                  <section>
+                    <h2>Key dates</h2>
+                    <DetailRows rows={detail.dates} />
+                  </section>
+                )}
+                {detail.contact.length > 0 && (
+                  <section>
+                    <h2>Contact</h2>
+                    <DetailRows rows={detail.contact} />
+                  </section>
+                )}
+              </div>
+            )}
+
+            {detail.showDeadlineNote && (
+              <p className="source-note">
+                Dates and requirements are provided by the grant source and may change. A displayed
+                close date may be an administrative horizon for a rolling or continuous program.
+              </p>
+            )}
+
+            {detail.additionalDetails.length > 0 && (
+              <section>
+                <h2>Source-specific details</h2>
+                <DetailRows rows={detail.additionalDetails} />
+              </section>
+            )}
+          </div>
         </details>
       )}
 
