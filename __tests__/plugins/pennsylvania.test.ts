@@ -19,12 +19,19 @@ const opportunity = {
         name: 'Pennsylvania Agency',
         parentName: null,
         parentCode: null,
+        futureAgencyField: 'preserved',
       },
     },
     paProcessSteps: {
       name: 'paProcessSteps',
       fieldType: 'array',
-      value: [{ stepNumber: 1, description: '<p>Apply online.</p>' }],
+      value: [
+        {
+          stepNumber: 1,
+          description: '<p>Apply online.</p>',
+          futureStepField: 'preserved',
+        },
+      ],
     },
     paFaqs: {
       name: 'paFaqs',
@@ -46,9 +53,12 @@ describe('PennsylvaniaPlugin', () => {
     const parsed = PennsylvaniaPlugin.schemas.Opportunity.commonSchema.parse(opportunity);
 
     expect(parsed.customFields?.agency?.value.name).toBe('Pennsylvania Agency');
+    expect(parsed.customFields?.agency?.value.futureAgencyField).toBe('preserved');
     expect(parsed.customFields?.paProcessSteps?.value[0]?.stepNumber).toBe(1);
+    expect(parsed.customFields?.paProcessSteps?.value[0]?.futureStepField).toBe('preserved');
     expect(parsed.customFields?.paFaqs?.value[0]?.question).toBe('Who can apply?');
     expect(parsed.customFields?.unregisteredField?.value).toBe('preserved');
+    expect(parsed.customFields).toEqual(opportunity.customFields);
   });
 
   it('rejects malformed registered Pennsylvania fields', () => {

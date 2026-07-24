@@ -58,6 +58,11 @@ California and Pennsylvania are bounded proofs of plugin-backed source consumpti
 - Native source schemas and bidirectional transformations remain in the API proxies.
 - The MCP does not create a shared state-field abstraction between the plugins. Each file remains
   independently replaceable by a future formal package import.
+- Consumer plugins omit static field descriptions because SDK 0.6 materializes them into every
+  opportunity. Descriptions remain valuable schema documentation and should later be exposed once
+  per source or response through a deduplicated field-definition surface.
+- Registered object schemas preserve unknown nested properties so provider additions are not deleted
+  before the consumer plugin is updated.
 - Federal and user-configured sources continue to work without plugins.
 
 ## Tool Contracts

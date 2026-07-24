@@ -78,7 +78,9 @@ either provider's native transforms because both APIs already return
 CommonGrants opportunities. Each local plugin can later be replaced wholesale
 by an import from a published provider package. Federal and user-configured
 sources continue to use the base SDK client unless their configuration supplies
-a plugin.
+a plugin. Consumer plugins omit static field descriptions because SDK 0.6
+otherwise repeats them in every result; descriptions should later be exposed
+once through a deduplicated field-definition surface.
 
 `isDefault` is reserved source configuration and has no routing effect today.
 Omitting `source` from `search_opportunities` fans out across every configured

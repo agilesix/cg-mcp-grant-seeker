@@ -19,6 +19,7 @@ const opportunity = {
         name: 'California Agency',
         parentName: null,
         parentCode: null,
+        futureAgencyField: 'preserved',
       },
     },
     caCategories: {
@@ -46,9 +47,11 @@ describe('CaliforniaPlugin', () => {
     const parsed = CaliforniaPlugin.schemas.Opportunity.commonSchema.parse(opportunity);
 
     expect(parsed.customFields?.agency?.value.name).toBe('California Agency');
+    expect(parsed.customFields?.agency?.value.futureAgencyField).toBe('preserved');
     expect(parsed.customFields?.caCategories?.value).toEqual(['Environment & Water']);
     expect(parsed.customFields?.caLoi?.value).toBe(true);
     expect(parsed.customFields?.unregisteredField?.value).toBe('preserved');
+    expect(parsed.customFields).toEqual(opportunity.customFields);
   });
 
   it('rejects malformed registered California fields', () => {

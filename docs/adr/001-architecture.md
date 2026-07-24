@@ -82,9 +82,14 @@ which require a hosted server — see ADR 002).
    The two local plugins remain self-contained even where their adapters define
    identical ecosystem fields. The MCP does not introduce a third shared-field
    contract; if formal provider plugins are published, each local file can be
-   replaced wholesale by its package import. Federal and user-configured sources
-   continue to use the plain SDK client, which validates core fields and
-   preserves unregistered custom fields with unknown values.
+   replaced wholesale by its package import. Consumer definitions omit static
+   descriptions because SDK 0.6 repeats them in every parsed record; a future
+   field-definition surface should expose that documentation once rather than
+   inflate each result. Registered object schemas use passthrough behavior to
+   preserve provider additions that the local contract does not yet know.
+   Federal and user-configured sources continue to use the plain SDK client,
+   which validates core fields and preserves unregistered custom fields with
+   unknown values.
 
 7. **Reserved default-source configuration.** `SourceConfig.isDefault` is
    retained as a reserved configuration field but is not consulted by current
