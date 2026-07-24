@@ -70,20 +70,21 @@ which require a hosted server — see ADR 002).
    tools preserve plugin data carried in `customFields`, but do not yet
    automatically expose every plugin-specific search filter.
 
-   California is the first bounded proof of this plugin path. The MCP carries a
-   local consumer plugin whose custom-field names and value schemas are derived
-   from `agilesix/cg-api-ca/src/adapter/plugin.ts`. It intentionally excludes
-   California's native source schema and bidirectional transforms: those belong
-   to the API proxy that converts native portal data, while this MCP consumes
-   the proxy's already-normalized CommonGrants responses. The plugin is attached
-   only through California's source configuration; tools contain no California
-   routing branch.
+   California and Pennsylvania are bounded proofs of this plugin path. The MCP
+   carries standalone consumer plugins whose custom-field names and value
+   schemas are derived from `agilesix/cg-api-ca/src/adapter/plugin.ts` and
+   `agilesix/cg-api-pa/src/adapter/plugin.ts`. They intentionally exclude native
+   source schemas and bidirectional transforms: those belong to the API proxies
+   that convert provider data, while this MCP consumes already-normalized
+   CommonGrants responses. Each plugin is attached only through its source
+   configuration; tools contain no state-specific routing branches.
 
-   This proof does not make plugins mandatory. Federal, Pennsylvania, and
-   user-configured sources continue to use the plain SDK client, which validates
-   core fields and preserves unregistered custom fields with unknown values.
-   If a shared California plugin is later published, the local definition can
-   be replaced by an import without changing the client or tool layers.
+   The two local plugins remain self-contained even where their adapters define
+   identical ecosystem fields. The MCP does not introduce a third shared-field
+   contract; if formal provider plugins are published, each local file can be
+   replaced wholesale by its package import. Federal and user-configured sources
+   continue to use the plain SDK client, which validates core fields and
+   preserves unregistered custom fields with unknown values.
 
 7. **Reserved default-source configuration.** `SourceConfig.isDefault` is
    retained as a reserved configuration field but is not consulted by current

@@ -1,5 +1,6 @@
 import type { ServerConfig, SourceConfig } from './types.js';
 import { CaliforniaPlugin } from '../plugins/california.js';
+import { PennsylvaniaPlugin } from '../plugins/pennsylvania.js';
 
 /**
  * The three sources the server ships with. `federalApiToken` is optional: the
@@ -19,6 +20,7 @@ export function defaultSources(federalApiToken?: string): SourceConfig[] {
       name: 'pa',
       label: 'Pennsylvania',
       baseUrl: 'https://pa.api.cg.a6lab.ai',
+      plugin: PennsylvaniaPlugin,
     },
     {
       name: 'ca',
