@@ -29,7 +29,6 @@ type Source = z.infer<typeof sourceObjectSchema>;
 
 type WireOpportunity = z.input<typeof OpportunityBaseSchema>;
 type SearchOutcome = z.input<typeof searchResultSchema>;
-const DATE_ONLY_KEYS = new Set(['date', 'startDate', 'endDate']);
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -42,18 +41,11 @@ function sourceValue(client: ICommonGrantsClient): Source {
 /**
  * SDK parsing intentionally turns protocol dates and timestamps into Date objects.
  * MCP structuredContent is JSON, so serialize once at the transport boundary.
- * JSON serialization preserves every enumerable standard and custom field
- * while restoring date-only events and timestamps to their protocol strings.
+ * SDK 0.6.1 serializes protocol date-only values as YYYY-MM-DD while ordinary
+ * timestamps retain their full ISO representation.
  */
 function wireOpportunity(opportunity: Awaited<ReturnType<ICommonGrantsClient['getOpportunity']>>) {
-  return JSON.parse(
-    JSON.stringify(opportunity, function (key, value) {
-      const original = key === '' ? value : (this as Record<string, unknown>)[key];
-      if (!(original instanceof Date)) return value;
-      const iso = original.toISOString();
-      return DATE_ONLY_KEYS.has(key) ? iso.slice(0, 10) : iso;
-    }),
-  ) as WireOpportunity;
+  return JSON.parse(JSON.stringify(opportunity)) as WireOpportunity;
 }
 
 function paginationValue(result: SearchResult, requestedPage: number) {

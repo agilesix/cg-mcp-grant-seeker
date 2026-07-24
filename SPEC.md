@@ -46,6 +46,8 @@ Core actions:
   unknown.
 - Search and detail results preserve every field supplied by the corresponding SDK operation. The API
   and SDK—not the MCP—own the summary-versus-detail boundary.
+- SDK 0.6.1 owns protocol-safe JSON serialization for plain dates. The MCP performs ordinary JSON
+  serialization at its structured-content boundary without field-name-specific date handling.
 
 ## Consumer Plugin Proofs
 
