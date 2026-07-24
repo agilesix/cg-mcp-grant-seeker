@@ -1,13 +1,14 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { OpportunityBaseSchema } from '@common-grants/sdk/schemas';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { registerTools } from '../../src/core/tools.js';
 import type { ICommonGrantsClient, Opportunity, SearchResult } from '../../src/core/types.js';
 
 const OPPORTUNITY_ID = '11111111-1111-4111-8111-111111111111';
 
-const opportunity = {
+const opportunity = OpportunityBaseSchema.parse({
   id: OPPORTUNITY_ID,
   title: 'Workforce Development Grant',
   status: { value: 'open' },
@@ -20,12 +21,19 @@ const opportunity = {
     closeDate: { eventType: 'singleDate', name: 'Close date', date: '2026-09-01' },
     postDate: { eventType: 'singleDate', name: 'Post date', date: '2026-06-01' },
   },
-  createdAt: new Date('2026-05-01T12:00:00Z'),
-  lastModifiedAt: new Date('2026-06-01T12:00:00Z'),
-} as unknown as Opportunity;
+  createdAt: '2026-05-01T12:00:00Z',
+  lastModifiedAt: '2026-06-01T12:00:00Z',
+}) as Opportunity;
 
 function onWire(value: unknown): unknown {
-  return JSON.parse(JSON.stringify(value));
+  return JSON.parse(
+    JSON.stringify(value, function (key, serialized) {
+      const original = key === '' ? serialized : (this as Record<string, unknown>)[key];
+      if (!(original instanceof Date)) return serialized;
+      const iso = original.toISOString();
+      return ['date', 'startDate', 'endDate'].includes(key) ? iso.slice(0, 10) : iso;
+    }),
+  );
 }
 
 function searchResult(
@@ -121,11 +129,34 @@ describe('MCP tool result contracts', () => {
     });
 
     expect(search.structuredContent).toMatchObject({
-      sources: [{ status: 'success', opportunities: [{ id: OPPORTUNITY_ID }] }],
+      sources: [
+        {
+          status: 'success',
+          opportunities: [
+            {
+              id: OPPORTUNITY_ID,
+              keyDates: {
+                postDate: { date: '2026-06-01' },
+                closeDate: { date: '2026-09-01' },
+              },
+              createdAt: '2026-05-01T12:00:00.000Z',
+              lastModifiedAt: '2026-06-01T12:00:00.000Z',
+            },
+          ],
+        },
+      ],
     });
     expect(detail.structuredContent).toMatchObject({
       status: 'success',
-      opportunity: { id: OPPORTUNITY_ID },
+      opportunity: {
+        id: OPPORTUNITY_ID,
+        keyDates: {
+          postDate: { date: '2026-06-01' },
+          closeDate: { date: '2026-09-01' },
+        },
+        createdAt: '2026-05-01T12:00:00.000Z',
+        lastModifiedAt: '2026-06-01T12:00:00.000Z',
+      },
     });
   });
 
