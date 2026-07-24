@@ -8,6 +8,7 @@ import type {
   Source,
   WireOpportunity,
 } from '../core/tools.js';
+import { buildOpportunityDetailModel, type DetailRow } from './opportunity-display.js';
 
 type JsonObject<T> = T & Record<string, unknown>;
 
@@ -52,22 +53,21 @@ function eventLabel(event: NonNullable<WireOpportunity['keyDates']>['closeDate']
   return event.details ?? event.description ?? event.name;
 }
 
-function customObject(opportunity: WireOpportunity, name: string): Record<string, unknown> | null {
-  const field = opportunity.customFields?.[name];
-  if (
-    !field ||
-    field.fieldType !== 'object' ||
-    typeof field.value !== 'object' ||
-    field.value === null ||
-    Array.isArray(field.value)
-  ) {
-    return null;
-  }
-  return field.value as Record<string, unknown>;
-}
-
 function optionalText(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function DetailRows({ rows }: { rows: DetailRow[] }) {
+  return (
+    <dl className="detail-rows">
+      {rows.map((row, index) => (
+        <div key={`${row.label}:${row.value}:${index}`}>
+          <dt>{row.label}</dt>
+          <dd>{row.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 function DetailView({
@@ -81,17 +81,11 @@ function DetailView({
 }) {
   const openExternal = useOpenExternal();
   const { opportunity, source, providerPageUrl } = item;
-  const awardRange = [
-    money(opportunity.funding?.minAwardAmount),
-    money(opportunity.funding?.maxAwardAmount),
-  ]
-    .filter(Boolean)
-    .join(' – ');
-  const agencyField = customObject(opportunity, 'agency');
-  const contactInfo = customObject(opportunity, 'contactInfo');
-  const eligibilityCriteria = customObject(opportunity, 'eligibilityCriteria');
-  const agency = optionalText(agencyField?.name) ?? optionalText(agencyField?.code) ?? source.label;
-  const applicantTypes = opportunity.acceptedApplicantTypes ?? [];
+  const detail = useMemo(
+    () => buildOpportunityDetailModel(opportunity, source.label),
+    [opportunity, source.label],
+  );
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const status = opportunity.status.value;
 
   return (
@@ -102,77 +96,105 @@ function DetailView({
     >
       <header className="detail-header">
         <div>
-          <p className="eyebrow">{agency}</p>
+          <p className="eyebrow">{detail.agency}</p>
           <h1>{opportunity.title}</h1>
         </div>
         <span className={`status-badge ${status}`}>{status}</span>
       </header>
 
       <dl className="detail-facts">
-        <div>
-          <dt>Award range</dt>
-          <dd>{awardRange || 'Not provided'}</dd>
-        </div>
-        <div>
-          <dt>Close date</dt>
-          <dd>{eventLabel(opportunity.keyDates?.closeDate ?? null) ?? 'Not provided'}</dd>
-        </div>
-        <div>
-          <dt>Source</dt>
-          <dd>{source.label}</dd>
-        </div>
+        {detail.facts.map((fact) => (
+          <div key={`${fact.label}:${fact.value}`}>
+            <dt>{fact.label}</dt>
+            <dd>{fact.value}</dd>
+          </div>
+        ))}
       </dl>
 
-      {opportunity.description && (
+      {detail.description && (
         <section className="detail-section">
           <h2>About this opportunity</h2>
-          <p className="description">{opportunity.description}</p>
+          <p className={`description ${descriptionExpanded ? 'expanded' : ''}`}>
+            {detail.description}
+          </p>
+          <button
+            className="text-button"
+            type="button"
+            aria-expanded={descriptionExpanded}
+            onClick={() => setDescriptionExpanded((expanded) => !expanded)}
+          >
+            {descriptionExpanded ? 'Show less' : 'Show full description'}
+          </button>
         </section>
       )}
 
-      {applicantTypes.length > 0 && (
-        <section className="detail-section">
-          <h2>Accepted applicants</h2>
-          <div className="chips">
-            {applicantTypes.map((type, index) => (
-              <span
-                className="chip"
-                key={`${type.value}-${type.customValue ?? 'standard'}-${index}`}
-              >
-                {type.customValue ?? type.description ?? type.value}
-              </span>
-            ))}
-          </div>
-        </section>
+      {(detail.applicantTypes.length > 0 || detail.funding.length > 0) && (
+        <div className="detail-grid detail-section">
+          {detail.applicantTypes.length > 0 && (
+            <section>
+              <h2>Who can apply</h2>
+              <div className="chips">
+                {detail.applicantTypes.map((applicantType, index) => (
+                  <span className="chip" key={`${applicantType}:${index}`}>
+                    {applicantType}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+          {detail.funding.length > 0 && (
+            <section>
+              <h2>Funding</h2>
+              <DetailRows rows={detail.funding} />
+            </section>
+          )}
+        </div>
       )}
 
-      {optionalText(eligibilityCriteria?.details) && (
+      {detail.eligibilityNotes && (
         <section className="detail-section">
           <h2>Eligibility notes</h2>
-          <p>{optionalText(eligibilityCriteria?.details)}</p>
+          <p>{detail.eligibilityNotes}</p>
         </section>
       )}
 
-      {contactInfo && (
-        <section className="detail-section">
-          <h2>Contact</h2>
-          <p>
-            {[
-              optionalText(contactInfo.name),
-              optionalText(contactInfo.email),
-              optionalText(contactInfo.phone),
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-          {optionalText(contactInfo.description) && <p>{optionalText(contactInfo.description)}</p>}
-        </section>
+      {(detail.dates.length > 0 || detail.contact.length > 0) && (
+        <div className="detail-grid detail-section">
+          {detail.dates.length > 0 && (
+            <section>
+              <h2>Key dates</h2>
+              <DetailRows rows={detail.dates} />
+            </section>
+          )}
+          {detail.contact.length > 0 && (
+            <section>
+              <h2>Contact</h2>
+              <DetailRows rows={detail.contact} />
+            </section>
+          )}
+        </div>
       )}
 
-      <p className="source-note">
-        Verify requirements and deadlines with the grant provider. A displayed close date may be an
-        administrative horizon for a rolling or continuous program.
-      </p>
+      {!detail.hasDecisionDetails && (
+        <p className="sparse-note">
+          The source did not provide additional funding, deadline, eligibility, or contact details.
+          The complete information currently available is shown above.
+        </p>
+      )}
+
+      {detail.showDeadlineNote && (
+        <p className="source-note">
+          Dates and requirements are provided by the grant source and may change. A displayed close
+          date may be an administrative horizon for a rolling or continuous program.
+        </p>
+      )}
+
+      {detail.additionalDetails.length > 0 && (
+        <details className="detail-disclosure">
+          <summary>Additional source details</summary>
+          <DetailRows rows={detail.additionalDetails} />
+        </details>
+      )}
 
       <div className="detail-actions">
         {canReturn && (

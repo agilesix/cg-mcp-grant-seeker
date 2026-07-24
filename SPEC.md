@@ -78,6 +78,10 @@ No host-specific persona is assumed. ChatGPT, Claude, and other MCP Apps hosts s
 - Selects a concise human display from that opportunity without narrowing the structured data available to the assistant.
 - At most two primary actions: return to results when invoked from search, and open the provider page when a URL exists.
 - Long descriptions are visually bounded. The complete structured value remains available to the assistant.
+- Descriptions that contain provider-authored HTML are converted to safe readable text before display; raw markup is never rendered or shown to the user.
+- Optional fact cards, rows, sections, disclosures, and provider actions are omitted when their source values are unavailable. Remaining facts reflow to use the available width.
+- A sparse opportunity remains a compact, intentional card anchored by title, status, and source. It may include one concise unknown-data note rather than empty sections or repeated “Not provided” placeholders.
+- Standard CommonGrants fields are preferred for display. Recognized plugin/custom fields supplement them without becoming required for the layout.
 - `null` means unknown or unavailable, never “no” or “ineligible.”
 - A source-provided close date can be an administrative horizon rather than a fixed deadline; verification with the grant provider remains explicit.
 

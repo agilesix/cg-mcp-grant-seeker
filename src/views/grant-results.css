@@ -299,7 +299,7 @@ button {
 
 .detail-view {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .detail-header {
@@ -310,8 +310,9 @@ button {
 }
 
 .detail-header h1 {
-  font-size: clamp(20px, 5vw, 27px);
-  line-height: 1.18;
+  max-width: 720px;
+  font-size: clamp(22px, 5vw, 31px);
+  line-height: 1.12;
 }
 
 .status-badge {
@@ -320,16 +321,16 @@ button {
 
 .detail-facts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 8px;
   margin: 0;
 }
 
 .detail-facts div {
   min-width: 0;
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--surface-soft);
-  padding: 10px;
+  padding: 11px;
 }
 
 .detail-facts dt {
@@ -341,33 +342,82 @@ button {
 .detail-facts dd {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .detail-section {
-  padding-top: 14px;
+  padding-top: 16px;
   border-top: 1px solid var(--line);
 }
 
 .detail-section h2 {
-  font-size: 13px;
+  margin: 0;
+  font-size: 14px;
 }
 
 .detail-section p,
 .source-note {
   margin: 7px 0 0;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .description {
   display: -webkit-box;
   overflow: hidden;
-  white-space: pre-line;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 7;
+}
+
+.description.expanded {
+  display: block;
+}
+
+.text-button {
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  padding: 7px 0 0;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.detail-grid > section {
+  min-width: 0;
+}
+
+.detail-rows {
+  display: grid;
+  gap: 8px;
+  margin: 9px 0 0;
+}
+
+.detail-rows > div {
+  display: grid;
+  grid-template-columns: minmax(86px, 0.42fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.detail-rows dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.detail-rows dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
 }
 
 .chips {
@@ -381,14 +431,60 @@ button {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface-soft);
-  padding: 5px 8px;
+  padding: 6px 9px;
   font-size: 11px;
 }
 
 .source-note {
   margin: 0;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff3d8;
+  padding: 11px 12px;
+  color: #75570f;
+}
+
+.dark .source-note {
+  background: #3a321c;
+  color: #e3c46c;
+}
+
+.sparse-note {
+  margin: 0;
+  border-radius: 10px;
+  background: var(--surface-soft);
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.detail-disclosure {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.detail-disclosure summary {
+  cursor: pointer;
+  padding: 11px 12px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.detail-disclosure .detail-rows {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin: 0;
+  padding: 0 12px 13px;
+}
+
+.detail-disclosure .detail-rows > div {
+  display: block;
+}
+
+.detail-disclosure .detail-rows dt {
+  margin-bottom: 3px;
 }
 
 .detail-actions {
@@ -396,6 +492,12 @@ button {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.text-button:focus-visible,
+.detail-disclosure summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .error-banner {
@@ -454,6 +556,16 @@ button {
 
   .detail-facts {
     grid-template-columns: 1fr;
+  }
+
+  .detail-grid,
+  .detail-disclosure .detail-rows {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-rows > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 
   .result-meta {
