@@ -23,7 +23,7 @@ source you register.
 | ---------------------- | --------------------------------------------------------------------- |
 | `list_grant_sources`   | Lists the registered CommonGrants sources                             |
 | `search_opportunities` | Searches bounded pages from one source or fans out across all sources |
-| `get_opportunity`      | Fetches normalized core and catalog details from a named source       |
+| `get_opportunity`      | Fetches the complete SDK-validated opportunity from a named source    |
 
 All tools are read-only and carry the MCP annotations (`readOnlyHint`,
 `openWorldHint`) the Claude and OpenAI marketplaces require.
@@ -84,9 +84,8 @@ on `isDefault` until default-source behavior is defined.
 ```
 src/
 ├── core/          # transport- & host-agnostic: ICommonGrantsClient seam,
-│   │              # SDK-backed client, tool registration, projection
+│   │              # SDK-backed client and lossless tool registration
 │   ├── client.ts  #   constructs and calls @common-grants/sdk clients
-│   ├── catalog-fields.ts # validates reusable CommonGrants catalog fields
 │   ├── tools.ts   #   list_grant_sources / search_opportunities / get_opportunity
 │   ├── server.ts  #   createServer(sources) → wired McpServer
 │   └── types.ts   #   SDK-derived domain types and the client seam
@@ -98,10 +97,11 @@ src/
 
 The server depends on an `ICommonGrantsClient` interface rather than an SDK
 client directly. SDK client construction and network calls stay in `client.ts`;
-domain types and enumerations are derived from the installed SDK, and catalog
-projection reuses SDK extension helpers. The tool layer necessarily imports SDK
-schemas for its agent-facing output contract, so the boundary is intentionally
-narrow rather than absolute. See
+domain types and enumerations are derived from the installed SDK. Tool results
+preserve the opportunity fields returned by the SDK instead of maintaining a
+second MCP-specific projection. The tool layer imports SDK schemas for its
+agent-facing output contract, so the boundary is intentionally narrow rather
+than absolute. See
 [docs/adr/001-architecture.md](docs/adr/001-architecture.md).
 
 ## Hosting & marketplaces

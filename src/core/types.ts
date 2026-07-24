@@ -53,7 +53,7 @@ export interface SearchParams {
 /**
  * MCP network operations depend on this interface rather than the SDK client
  * directly. Client construction and calls stay in one implementation, while
- * tool contracts and projections may still import SDK schemas and extensions.
+ * tool contracts may import SDK schemas and extensions.
  */
 export interface ICommonGrantsClient {
   readonly name: string;

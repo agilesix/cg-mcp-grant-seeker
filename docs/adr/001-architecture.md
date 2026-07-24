@@ -29,12 +29,12 @@ which require a hosted server — see ADR 002).
 2. **SDK network access sits behind an `ICommonGrantsClient` interface.** The
    server depends on this interface for API calls, so client upgrades and future
    retries, caching, or pagination helpers have one primary integration point in
-   `src/core/client.ts`. The parsing and projection layers deliberately reuse SDK
-   schemas and extensions for runtime validation. Domain types (`Opportunity`, `SearchResult`,
+   `src/core/client.ts`. Tool output deliberately reuses SDK schemas rather than
+   maintaining an MCP-specific opportunity projection. Domain types (`Opportunity`, `SearchResult`,
    `OpportunityStatus`) are **derived** from the installed SDK via
    `Awaited<ReturnType<...>>` so incompatible SDK changes surface during
-   compilation. Tool contracts and catalog projection also import SDK schemas
-   and extension helpers; the SDK boundary is narrow, not absolute.
+   compilation. Tool contracts also import SDK schemas; the SDK boundary is
+   narrow, not absolute.
 
 3. **A data-driven source registry.** Sources are plain config
    (`SourceConfig[]`), not code. Adding a source — built-in or user-supplied —
@@ -57,6 +57,9 @@ which require a hosted server — see ADR 002).
    target one source or omit `source` to fan out across all sources; retrieval
    requires the source-scoped ID and an explicit source. Every tool carries MCP
    annotations (`readOnlyHint`, `openWorldHint`) required by both marketplaces.
+   The MCP preserves every opportunity field returned by the corresponding SDK
+   method. The SDK/API, rather than the MCP, owns the evolving distinction
+   between search-summary and detail data.
 
 6. **The SDK's actual surface, verified.** As of `@common-grants/sdk@0.6`, only
    `client.opportunities` exists (`search`/`list`/`get`); `status` is an object
@@ -64,7 +67,8 @@ which require a hosted server — see ADR 002).
    `keyDates`, and reusable catalog fields are extensions rather than base
    opportunity properties. A source may optionally supply an SDK `Plugin`; the
    client is then constructed through `plugin.getClient()`. The generic MCP
-   tools do not automatically expose every plugin-specific field or filter.
+   tools preserve plugin data carried in `customFields`, but do not yet
+   automatically expose every plugin-specific search filter.
 
 7. **Reserved default-source configuration.** `SourceConfig.isDefault` is
    retained as a reserved configuration field but is not consulted by current
