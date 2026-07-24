@@ -72,12 +72,15 @@ Each source may optionally provide an SDK `Plugin`. When present, the server
 constructs that source's client with `plugin.getClient()` so the plugin's
 compiled opportunity schema is used while parsing responses.
 
-California is the first built-in plugin proof. Its source configuration uses a
-small local consumer plugin derived from the existing `cg-api-ca` custom-field
-contract. The MCP does not copy California's native transforms because the API
-already returns CommonGrants opportunities. Federal, Pennsylvania, and
-user-configured sources continue to use the base SDK client unless their
-configuration supplies a plugin.
+California and Pennsylvania use small, standalone consumer plugins derived
+from their existing API adapters' custom-field contracts. The MCP does not copy
+either provider's native transforms because both APIs already return
+CommonGrants opportunities. Each local plugin can later be replaced wholesale
+by an import from a published provider package. Federal and user-configured
+sources continue to use the base SDK client unless their configuration supplies
+a plugin. Consumer plugins omit static field descriptions because SDK 0.6
+otherwise repeats them in every result; descriptions should later be exposed
+once through a deduplicated field-definition surface.
 
 `isDefault` is reserved source configuration and has no routing effect today.
 Omitting `source` from `search_opportunities` fans out across every configured

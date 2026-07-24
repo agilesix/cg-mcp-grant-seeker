@@ -2,15 +2,14 @@ import { definePlugin } from '@common-grants/sdk/extensions';
 import { z } from 'zod/v3';
 
 /*
- * Consumer-side subset of the California plugin contract.
+ * Consumer-side subset of the Pennsylvania plugin contract.
  *
  * Source of truth:
- * https://github.com/agilesix/cg-api-ca/blob/main/src/adapter/plugin.ts
+ * https://github.com/agilesix/cg-api-pa/blob/main/src/adapter/plugin.ts
  *
- * The API plugin also owns the native California schemas and bidirectional
- * transforms. This MCP consumes the already-normalized CommonGrants API, so it
- * needs only the custom-field contract used to validate responses. Replace
- * this local definition with an import if the California plugin is published.
+ * The API plugin owns Pennsylvania's native schemas and transformations. This
+ * MCP consumes normalized CommonGrants responses and needs only the custom
+ * fields used to validate them.
  *
  * Static field descriptions are intentionally omitted: SDK 0.6 materializes
  * them into every parsed opportunity. They belong in a future deduplicated
@@ -50,7 +49,10 @@ const CostSharingValueSchema = z
   })
   .passthrough();
 
-const californiaCustomFields = {
+const pennsylvaniaCustomFields = {
+  legacySerialId: {
+    fieldType: 'integer',
+  },
   agency: {
     fieldType: 'object',
     value: AgencyValueSchema,
@@ -77,79 +79,72 @@ const californiaCustomFields = {
     fieldType: 'string',
     value: z.string().datetime(),
   },
-  caPortalId: {
+  paSlug: {
     fieldType: 'string',
   },
-  caGrantId: {
+  paCategory: {
     fieldType: 'string',
   },
-  caCategories: {
+  paGrantCycle: {
+    fieldType: 'string',
+  },
+  paRawMinAward: {
+    fieldType: 'string',
+  },
+  paRawMaxAward: {
+    fieldType: 'string',
+  },
+  paRawTotalFunds: {
+    fieldType: 'string',
+  },
+  paRawLinkToApply: {
+    fieldType: 'string',
+  },
+  paProcessSteps: {
     fieldType: 'array',
-    value: z.array(z.string()),
+    value: z.array(
+      z
+        .object({
+          stepNumber: z.number().int(),
+          description: z.string(),
+        })
+        .passthrough(),
+    ),
   },
-  caLoi: {
-    fieldType: 'boolean',
+  paAdditionalResources: {
+    fieldType: 'array',
+    value: z.array(
+      z
+        .object({
+          title: z.string(),
+          url: z.string(),
+        })
+        .passthrough(),
+    ),
   },
-  caApplicantTypeNotes: {
-    fieldType: 'string',
-  },
-  caGeography: {
-    fieldType: 'string',
-  },
-  caFundingSourceNotes: {
-    fieldType: 'string',
-  },
-  caFundingMethod: {
-    fieldType: 'string',
-  },
-  caFundingMethodNotes: {
-    fieldType: 'string',
-  },
-  caEstAwards: {
-    fieldType: 'string',
-  },
-  caEstAmountsRaw: {
-    fieldType: 'string',
-  },
-  caRawEstAvailFunds: {
-    fieldType: 'string',
-  },
-  caAwardPeriod: {
-    fieldType: 'string',
-  },
-  caExpAwardDate: {
-    fieldType: 'string',
-  },
-  caElecSubmission: {
-    fieldType: 'string',
-  },
-  caAwardStats: {
-    fieldType: 'string',
-  },
-  caCategorySuggestion: {
-    fieldType: 'string',
-  },
-  caChangeNotes: {
-    fieldType: 'string',
-  },
-  caSubscribeUrl: {
-    fieldType: 'string',
-  },
-  caGrantEventsUrl: {
-    fieldType: 'string',
+  paFaqs: {
+    fieldType: 'array',
+    value: z.array(
+      z
+        .object({
+          question: z.string(),
+          answer: z.string(),
+        })
+        .passthrough(),
+    ),
   },
 } as const;
 
-export const CaliforniaPlugin = definePlugin({
+export const PennsylvaniaPlugin = definePlugin({
   meta: {
-    name: 'ca-grants-consumer',
+    name: 'pa-egrants-consumer',
     version: '0.1.0',
-    sourceSystem: 'ca-grants-portal',
+    sourceSystem: 'pa-egrants',
     capabilities: ['customFields'],
   },
   schemas: {
     Opportunity: {
-      customFields: californiaCustomFields,
+      customFields: pennsylvaniaCustomFields,
     },
   },
 } as const);

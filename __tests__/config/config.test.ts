@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { definePlugin } from '@common-grants/sdk/extensions';
 import { loadConfig, serverConfigSchema } from '../../src/config/index.js';
 import { CaliforniaPlugin } from '../../src/plugins/california.js';
+import { PennsylvaniaPlugin } from '../../src/plugins/pennsylvania.js';
 
 const valid = {
   sources: [
@@ -106,12 +107,12 @@ describe('loadConfig defaults', () => {
     expect(federal?.auth).toEqual({ type: 'apiKey', key: undefined });
   });
 
-  it('binds only the built-in California source to its consumer plugin', async () => {
+  it('binds built-in state sources to their consumer plugins', async () => {
     const config = await loadConfig({ env: {}, cwd: '/nonexistent-dir-xyz' });
     const byName = new Map(config.sources.map((source) => [source.name, source]));
 
     expect(byName.get('ca')?.plugin).toBe(CaliforniaPlugin);
+    expect(byName.get('pa')?.plugin).toBe(PennsylvaniaPlugin);
     expect(byName.get('federal')?.plugin).toBeUndefined();
-    expect(byName.get('pa')?.plugin).toBeUndefined();
   });
 });
