@@ -34,7 +34,7 @@ function findConfigFile(cwd: string): string | undefined {
  * Precedence:
  *   1. An explicit `configPath` (or the `CG_MCP_CONFIG` env var).
  *   2. A `commongrants-mcp.config.{ts,mjs,js}` discovered in `cwd`.
- *   3. The built-in three-source default (federal/pa/ca), with the federal key
+ *   3. The built-in four-source default (federal/pa/ca/wa), with the federal key
  *      read from `FEDERAL_API_TOKEN`.
  *
  * A discovered config is loaded with jiti (so `.ts` works at runtime with no

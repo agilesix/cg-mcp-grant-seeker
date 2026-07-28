@@ -2,11 +2,12 @@ import type { ServerConfig, SourceConfig } from './types.js';
 import { CaliforniaPlugin } from '../plugins/california.js';
 import { FederalPlugin } from '../plugins/federal.js';
 import { PennsylvaniaPlugin } from '../plugins/pennsylvania.js';
+import { WashingtonPlugin } from '../plugins/washington.js';
 
 /**
- * The three sources the server ships with. `federalApiToken` is optional: the
+ * The four sources the server ships with. `federalApiToken` is optional: the
  * federal source is included either way, but without a key its calls will fail
- * with an auth error (surfaced per-source, not fatal). PA and CA are public.
+ * with an auth error (surfaced per-source, not fatal). PA, CA, and WA are public.
  */
 export function defaultSources(federalApiToken?: string): SourceConfig[] {
   return [
@@ -29,6 +30,12 @@ export function defaultSources(federalApiToken?: string): SourceConfig[] {
       label: 'California',
       baseUrl: 'https://ca.api.cg.a6lab.ai',
       plugin: CaliforniaPlugin,
+    },
+    {
+      name: 'wa',
+      label: 'Washington',
+      baseUrl: 'https://wa-commongrants-api.brian-derfer.workers.dev',
+      plugin: WashingtonPlugin,
     },
   ];
 }
