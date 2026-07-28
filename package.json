@@ -1,7 +1,7 @@
 {
   "name": "@common-grants/mcp-grant-seeker",
   "version": "0.1.0",
-  "description": "An MCP server that searches grant opportunities across CommonGrants-compliant APIs (federal, Pennsylvania, California, and any source you add)",
+  "description": "An MCP server that searches grant opportunities across CommonGrants-compliant APIs (federal, Pennsylvania, California, Washington, and any source you add)",
   "license": "MIT",
   "private": true,
   "type": "module",

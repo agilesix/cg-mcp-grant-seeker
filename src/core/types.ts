@@ -45,7 +45,7 @@ export interface SourceConfig {
   label: string;
   /** Base URL of the CommonGrants API. The SDK appends /common-grants/... paths. */
   baseUrl: string;
-  /** Optional auth. Omit for public sources (PA, CA). */
+  /** Optional auth. Omit for public sources (PA, CA, WA). */
   auth?: AuthConfig;
   /** Plugin that extends parsing and search behavior for this source. */
   plugin?: SourcePlugin;

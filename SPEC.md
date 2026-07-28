@@ -2,7 +2,7 @@
 
 ## Status
 
-Existing headless MCP server with bounded federal, California, and Pennsylvania consumer-plugin
+Existing headless MCP server with bounded federal, California, Pennsylvania, and Washington consumer-plugin
 proofs. This
 specification records the source-integration contract without introducing a visual interface or
 changing the current research-tool contract.
@@ -38,7 +38,7 @@ Core actions:
 ## Product and Technical Context
 
 - Tools: `list_grant_sources`, `search_opportunities`, and `get_opportunity`.
-- Data path: MCP tools → CommonGrants SDK client boundary → federal, Pennsylvania, and California
+- Data path: MCP tools → CommonGrants SDK client boundary → federal, Pennsylvania, California, and Washington
   CommonGrants APIs.
 - Sources are configured data. Core tools do not branch on a provider's identity.
 - A source may optionally supply an SDK plugin. Plugin-bound clients validate registered custom
@@ -51,11 +51,11 @@ Core actions:
 
 ## Consumer Plugin Proofs
 
-Federal, California, and Pennsylvania are bounded proofs of plugin-backed source consumption:
+Federal, California, Pennsylvania, and Washington are bounded proofs of plugin-backed source consumption:
 
 - Each built-in source supplies its own standalone local consumer plugin.
-- Field names and value schemas are derived from the existing `cg-api-ca`, `cg-api-pa`, and
-  `@common-grants/cg-grants-gov` adapter contracts.
+- Field names and value schemas are derived from the existing `cg-api-ca`, `cg-api-pa`, `cg-api-wa`,
+  and `@common-grants/cg-grants-gov` adapter contracts.
 - Each plugin contains only CommonGrants custom-field definitions needed to parse its normalized API
   response.
 - Native source schemas and bidirectional transformations remain in the API proxies.
@@ -79,7 +79,7 @@ Federal, California, and Pennsylvania are bounded proofs of plugin-backed source
 
 ## Non-Goals
 
-- Publishing California or Pennsylvania plugin packages.
+- Publishing California, Pennsylvania, or Washington plugin packages.
 - Exposing plugin capability discovery or custom-filter inputs.
 - Copying provider-native transformations into the MCP.
 - Making plugins mandatory for CommonGrants interoperability.
@@ -87,7 +87,7 @@ Federal, California, and Pennsylvania are bounded proofs of plugin-backed source
 
 ## Acceptance Checks
 
-- Federal, California, and Pennsylvania search and detail calls are constructed through
+- Federal, California, Pennsylvania, and Washington search and detail calls are constructed through
   `plugin.getClient()`.
 - Live built-in-source responses parse with representative shared and provider-specific custom
   fields intact.

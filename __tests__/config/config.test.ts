@@ -4,6 +4,7 @@ import { loadConfig, serverConfigSchema } from '../../src/config/index.js';
 import { CaliforniaPlugin } from '../../src/plugins/california.js';
 import { FederalPlugin } from '../../src/plugins/federal.js';
 import { PennsylvaniaPlugin } from '../../src/plugins/pennsylvania.js';
+import { WashingtonPlugin } from '../../src/plugins/washington.js';
 
 const valid = {
   sources: [
@@ -88,9 +89,9 @@ describe('serverConfigSchema', () => {
 });
 
 describe('loadConfig defaults', () => {
-  it('falls back to the three built-in sources when no config file exists', async () => {
+  it('falls back to the four built-in sources when no config file exists', async () => {
     const config = await loadConfig({ env: {}, cwd: '/nonexistent-dir-xyz' });
-    expect(config.sources.map((s) => s.name)).toEqual(['federal', 'pa', 'ca']);
+    expect(config.sources.map((s) => s.name)).toEqual(['federal', 'pa', 'ca', 'wa']);
   });
 
   it('threads FEDERAL_API_TOKEN into the federal source auth', async () => {
@@ -115,5 +116,6 @@ describe('loadConfig defaults', () => {
     expect(byName.get('ca')?.plugin).toBe(CaliforniaPlugin);
     expect(byName.get('pa')?.plugin).toBe(PennsylvaniaPlugin);
     expect(byName.get('federal')?.plugin).toBe(FederalPlugin);
+    expect(byName.get('wa')?.plugin).toBe(WashingtonPlugin);
   });
 });

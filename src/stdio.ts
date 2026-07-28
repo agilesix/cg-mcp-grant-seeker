@@ -4,7 +4,7 @@
  * Claude Desktop or any stdio MCP client, and what `pnpm run dev` launches.
  *
  * It loads the source registry (a user config file if present, otherwise the
- * built-in federal/pa/ca defaults with FEDERAL_API_TOKEN from the env), builds
+ * built-in federal/pa/ca/wa defaults with FEDERAL_API_TOKEN from the env), builds
  * the transport-agnostic server, and connects it over stdio.
  */
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
