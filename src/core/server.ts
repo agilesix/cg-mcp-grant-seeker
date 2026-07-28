@@ -1,4 +1,4 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from 'skybridge/server';
 import { createClients } from './client.js';
 import { registerTools } from './tools.js';
 import type { ICommonGrantsClient, SourceConfig } from './types.js';
@@ -9,13 +9,22 @@ export const SERVER_INFO = {
 } as const;
 
 /**
- * Builds a fully-wired McpServer from a list of sources. Transport-agnostic:
- * the stdio entrypoint and the remote Worker both call this, then connect it
- * to their respective transport.
+ * Controls host-specific additions without changing the core tool contracts.
  */
-export function createServer(sources: SourceConfig[]): McpServer {
+export interface ServerBuildOptions {
+  grantResultsView?: boolean;
+}
+
+/**
+ * Builds a fully-wired Skybridge McpServer from a list of sources. The stdio
+ * entrypoint disables the view; the HTTP app enables it.
+ */
+export function createServer(
+  sources: SourceConfig[],
+  { grantResultsView = true }: ServerBuildOptions = {},
+): McpServer {
   const clients: ICommonGrantsClient[] = createClients(sources);
-  const server = new McpServer(SERVER_INFO);
-  registerTools(server, clients);
+  const server = new McpServer(SERVER_INFO, {});
+  registerTools(server, clients, { grantResultsView });
   return server;
 }

@@ -19,9 +19,11 @@ describe('SdkCommonGrantsClient', () => {
       name: 'ca',
       label: 'California',
       baseUrl: 'https://ca.example.com',
+      opportunityPageBaseUrl: 'https://grants.ca.gov/opportunity/',
       plugin,
     });
 
+    expect(client.opportunityPageBaseUrl).toBe('https://grants.ca.gov/opportunity/');
     await expect(client.searchOpportunities({ query: 'water', pageSize: 5 })).resolves.toBe(result);
     await expect(client.getOpportunity('ca-1')).resolves.toBe(opportunity);
     expect(getClient).toHaveBeenCalledWith({

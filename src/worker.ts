@@ -51,7 +51,9 @@ function withCors(response: Response): Response {
 
 async function handleMcp(request: Request, env: WorkerEnv): Promise<Response> {
   // Fresh server + transport per request (required in stateless mode).
-  const server = createServer(defaultSources(env.FEDERAL_API_TOKEN));
+  const server = createServer(defaultSources(env.FEDERAL_API_TOKEN), {
+    grantResultsView: false,
+  });
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

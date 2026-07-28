@@ -20,11 +20,12 @@ source you register.
 
 ## Tools
 
-| Tool                   | What it does                                                          |
-| ---------------------- | --------------------------------------------------------------------- |
-| `list_grant_sources`   | Lists the registered CommonGrants sources                             |
-| `search_opportunities` | Searches bounded pages from one source or fans out across all sources |
-| `get_opportunity`      | Fetches the complete SDK-validated opportunity from a named source    |
+| Tool                            | What it does                                                          |
+| ------------------------------- | --------------------------------------------------------------------- |
+| `list_grant_sources`            | Lists the registered CommonGrants sources                             |
+| `search_opportunities`          | Searches bounded pages from one source or fans out across all sources |
+| `get_opportunity`               | Fetches the complete SDK-validated opportunity from a named source    |
+| `present_opportunity_shortlist` | Resolves and presents one bounded final shortlist after research      |
 
 All tools are read-only and carry the MCP annotations (`readOnlyHint`,
 `openWorldHint`) the Claude and OpenAI marketplaces require.
@@ -97,7 +98,7 @@ src/
 ├── core/          # transport- & host-agnostic: ICommonGrantsClient seam,
 │   │              # SDK-backed client and lossless tool registration
 │   ├── client.ts  #   constructs and calls @common-grants/sdk clients
-│   ├── tools.ts   #   list_grant_sources / search_opportunities / get_opportunity
+│   ├── tools.ts   #   research tools plus final shortlist presentation
 │   ├── server.ts  #   createServer(sources) → wired McpServer
 │   └── types.ts   #   SDK-derived domain types and the client seam
 ├── config/        # data-driven source registry (types, Zod schema,
@@ -115,6 +116,26 @@ second MCP-specific projection. The tool layer imports SDK schemas for its
 agent-facing output contract, so the boundary is intentionally narrow rather
 than absolute. See
 [docs/adr/001-architecture.md](docs/adr/001-architecture.md).
+
+### Theming the MCP app
+
+The visual theme is defined by semantic CSS tokens in
+[`src/views/theme.css`](src/views/theme.css). The CommonGrants-derived preset is
+the default. It takes its green and neutral palette from the public
+CommonGrants documentation site without claiming that the site is a complete
+design system.
+
+Self-hosters can select the alternate host-neutral preset at build time:
+
+```sh
+VITE_GRANT_VISUAL_THEME=host-neutral pnpm build
+```
+
+The supported values are typed in
+[`src/views/theme-config.ts`](src/views/theme-config.ts). The host still
+controls light versus dark mode independently. Component layout and responsive
+behavior remain in `src/views/grant-results.css`, so changing the visual preset
+does not modify the React view's behavior or data flow.
 
 ## Hosting & marketplaces
 

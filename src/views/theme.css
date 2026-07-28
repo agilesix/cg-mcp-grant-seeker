@@ -1,0 +1,79 @@
+:root {
+  --grant-font-family:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --grant-font-size-xs: 10px;
+  --grant-font-size-sm: 11px;
+  --grant-font-size-md: 12px;
+  --grant-font-size-lg: 13px;
+  --grant-font-size-xl: 14px;
+  --grant-font-size-2xl: 15px;
+  --grant-font-size-title: clamp(20px, 5vw, 26px);
+  --grant-font-size-detail-title: clamp(22px, 5vw, 31px);
+  --grant-font-weight-semibold: 650;
+  --grant-font-weight-bold: 700;
+  --grant-font-weight-eyebrow: 750;
+  --grant-letter-spacing-heading: -0.015em;
+  --grant-letter-spacing-eyebrow: 0.08em;
+  --grant-border-width: 1px;
+  --grant-focus-width: 2px;
+  --grant-focus-offset: 2px;
+  --grant-radius-app: 14px;
+  --grant-radius-card: 10px;
+  --grant-radius-control: 9px;
+  --grant-radius-notice: 8px;
+  --grant-radius-pill: 999px;
+  --grant-shadow-app: none;
+  font-family: var(--grant-font-family);
+  background: transparent;
+}
+
+.grant-app {
+  /* CommonGrants-derived default, based on the public documentation site. */
+  --grant-color-text: #17181c;
+  --grant-color-text-muted: #545861;
+  --grant-color-border: #c0c2c7;
+  --grant-color-surface: #ffffff;
+  --grant-color-surface-subtle: #f5f6f8;
+  --grant-color-accent: #2a583d;
+  --grant-color-status-neutral: #7d8580;
+  --grant-color-status-open: #2d9867;
+  --grant-color-status-forecasted: #c18b27;
+  --grant-color-status-closed: #aa5555;
+  --grant-color-error-border: #d9a4a4;
+  --grant-color-error-surface: #f9e8e8;
+  --grant-color-error-text: #8f2929;
+  --grant-color-warning-surface: #fff3d8;
+  --grant-color-warning-text: #75570f;
+}
+
+.grant-app.dark {
+  --grant-color-text: #eceef2;
+  --grant-color-text-muted: #a0a4ae;
+  --grant-color-border: #353841;
+  --grant-color-surface: #17181c;
+  --grant-color-surface-subtle: #24272f;
+  --grant-color-accent: #bdcdc3;
+  --grant-color-error-border: #a95c5c;
+  --grant-color-error-surface: #3b2020;
+  --grant-color-error-text: #ffb4ab;
+  --grant-color-warning-surface: #3a321c;
+  --grant-color-warning-text: #e3c46c;
+}
+
+.grant-app[data-visual-theme='host-neutral'] {
+  --grant-color-text: var(--color-text-primary, #202124);
+  --grant-color-text-muted: var(--color-text-secondary, #66706a);
+  --grant-color-border: var(--color-border-primary, #d9dedb);
+  --grant-color-surface: var(--color-background-primary, #ffffff);
+  --grant-color-surface-subtle: var(--color-background-secondary, #f5f7f5);
+  --grant-color-accent: var(--color-text-link, #176b4a);
+}
+
+.grant-app[data-visual-theme='host-neutral'].dark {
+  --grant-color-text: var(--color-text-primary, #f0f3f1);
+  --grant-color-text-muted: var(--color-text-secondary, #aeb7b1);
+  --grant-color-border: var(--color-border-primary, #3b4540);
+  --grant-color-surface: var(--color-background-primary, #171b18);
+  --grant-color-surface-subtle: var(--color-background-secondary, #222824);
+  --grant-color-accent: var(--color-text-link, #8bd2ae);
+}
