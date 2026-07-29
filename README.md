@@ -26,6 +26,12 @@ source you register.
 | `search_opportunities` | Searches bounded pages from one source or fans out across all sources |
 | `get_opportunity`      | Fetches the complete SDK-validated opportunity from a named source    |
 
+The hosted MCP App also exposes `present_opportunity_shortlist`. An assistant
+uses the three headless tools for iterative research, then calls the
+presentation tool once per completed shortlist revision. That produces one
+stable, globally ranked review surface instead of attaching transient UI to
+every search. The stdio server remains headless.
+
 All tools are read-only and carry the MCP annotations (`readOnlyHint`,
 `openWorldHint`) the Claude and OpenAI marketplaces require.
 
@@ -101,12 +107,17 @@ src/
 │   ├── server.ts  #   createServer(sources) → standard MCP SDK server
 │   └── types.ts   #   SDK-derived domain types and the client seam
 ├── app/           # host-neutral app tools, models, and components
+│   ├── tools/     #   final-shortlist definition and bounded hydration
+│   ├── models/    #   display projection and persistent-state rules
+│   ├── components/#   pure React components receiving props/callbacks
 │   └── hosts/
 │       └── skybridge/
-│           └── server.ts  # adapts unchanged core tools to Skybridge
+│           ├── server.ts  # adapts unchanged core tools to Skybridge
+│           └── views/     # Skybridge hooks-to-props container
 ├── config/        # data-driven source registry (types, Zod schema,
 │                  # defineConfig, defaults, jiti loader)
 ├── plugins/       # localized consumer plugins for built-in source extensions
+├── views/         # behavior-free shims required by Skybridge view scanning
 ├── stdio.ts       # local entrypoint (Claude Desktop, Inspector, self-hosters)
 └── server.ts      # Skybridge HTTP entrypoint used by local and hosted runtimes
 ```
@@ -115,8 +126,11 @@ The shared core depends on an `ICommonGrantsClient` interface rather than an SDK
 client directly. SDK client construction and network calls stay in `client.ts`;
 domain types and enumerations are derived from the installed SDK. Tool results
 preserve the opportunity fields returned by the SDK instead of maintaining a
-second MCP-specific projection. Skybridge is isolated to `src/app/` and the
-thin HTTP entrypoint; the standard MCP core and stdio server do not import it.
+second MCP-specific projection. The app's structured shortlist also preserves
+complete opportunities while its human display selects a concise subset.
+Skybridge is isolated to the app host adapter, scanner shim, and thin HTTP
+entrypoint; the standard MCP core, presentation handler, display model, and
+pure components do not import it.
 The tool layer imports SDK schemas for its
 agent-facing output contract, so the boundary is intentionally narrow rather
 than absolute. See

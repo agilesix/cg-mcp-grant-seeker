@@ -8,7 +8,12 @@ if (!endpoint) {
   process.exit(2);
 }
 
-const expectedTools = ['list_grant_sources', 'search_opportunities', 'get_opportunity'];
+const expectedTools = [
+  'list_grant_sources',
+  'search_opportunities',
+  'get_opportunity',
+  'present_opportunity_shortlist',
+];
 let lastError;
 
 for (let attempt = 1; attempt <= 5; attempt += 1) {
@@ -25,20 +30,48 @@ for (let attempt = 1; attempt <= 5; attempt += 1) {
       }
     }
 
-    const result = await client.callTool({
-      name: 'search_opportunities',
-      arguments: { source: 'wa', query: 'agriculture', limit: 1 },
-    });
-    const washington = result.structuredContent?.sources?.[0];
-    if (!washington || washington.source?.name !== 'wa') {
-      throw new Error('Washington source result was not returned');
+    const references = [];
+    for (const source of ['federal', 'pa', 'ca', 'wa']) {
+      const result = await client.callTool({
+        name: 'search_opportunities',
+        arguments: { source, limit: 1 },
+      });
+      const sourceResult = result.structuredContent?.sources?.[0];
+      if (!sourceResult || sourceResult.source?.name !== source) {
+        throw new Error(`${source} source result was not returned`);
+      }
+      if (sourceResult.status === 'error') {
+        throw new Error(`${source} source failed: ${sourceResult.error}`);
+      }
+      const opportunity = sourceResult.opportunities?.[0];
+      if (!opportunity?.id) {
+        throw new Error(`${source} search returned no opportunity to present`);
+      }
+      references.push({ source, id: opportunity.id });
     }
-    if (washington.status === 'error') {
-      throw new Error(`Washington source failed: ${washington.error}`);
+
+    const presentation = await client.callTool({
+      name: 'present_opportunity_shortlist',
+      arguments: {
+        opportunities: references,
+        researchContext: { searchCount: 4, queries: ['one result per configured source'] },
+      },
+    });
+    const presented = presentation.structuredContent;
+    if (!presented?.presentationId || presented.items?.length !== references.length) {
+      throw new Error('Final-shortlist presentation did not return every source');
+    }
+    const failed = presented.items.filter(({ status }) => status !== 'success');
+    if (failed.length > 0) {
+      throw new Error(
+        `Final-shortlist presentation failed to hydrate: ${failed
+          .map(({ source }) => source.name)
+          .join(', ')}`,
+      );
     }
 
     console.log(
-      `Preview smoke passed: ${expectedTools.length} core tools; Washington status ${washington.status}.`,
+      `Preview smoke passed: ${expectedTools.length} tools; all four providers searched and presented.`,
     );
     await client.close();
     process.exit(0);

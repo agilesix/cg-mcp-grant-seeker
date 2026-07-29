@@ -2,9 +2,10 @@
 
 ## Status
 
-Headless MCP server with bounded federal, California, Pennsylvania, and Washington consumer-plugin
-proofs. Skybridge now packages the existing tool surface for HTTP deployment and local development
-without introducing a visual interface or changing the research-tool contract.
+Headless MCP research server with bounded federal, California, Pennsylvania, and Washington
+consumer-plugin proofs, plus an intentionally separate hosted app flow. Skybridge packages the
+existing research tools and adds one final-shortlist presentation tool without attaching UI to
+intermediate searches.
 
 ## Value Proposition
 
@@ -31,8 +32,12 @@ Core actions:
 2. The assistant discovers available sources and searches one or several of them.
 3. The assistant preserves each result's source and ID, retrieves promising details, and explains
    findings in the conversation.
-4. A headless client consumes the same structured results without parsing Markdown or source-specific
-   payloads.
+4. In an app-capable host, the assistant calls `present_opportunity_shortlist` once per completed
+   shortlist revision with its strongest source-scoped candidates.
+5. The user reviews one stable shortlist, opens details, and follows provider links without creating
+   additional MCP calls.
+6. A headless client continues to consume the research tools without parsing Markdown or
+   source-specific payloads.
 
 ## Product and Technical Context
 
@@ -51,6 +56,8 @@ Core actions:
   available for headless clients and self-hosters.
 - Skybridge is isolated to `src/app/` and the thin HTTP entrypoint. `src/core/` remains a standard
   MCP SDK implementation and is shared unchanged with stdio.
+- The shortlist handler, display model, and React components are host-neutral. Skybridge owns only
+  registration metadata, web hooks, and its required `src/views/` scanner shim.
 
 ## Consumer Plugin Proofs
 
@@ -79,6 +86,9 @@ Federal, California, Pennsylvania, and Washington are bounded proofs of plugin-b
 - Consumer-plugin parsing is an internal source-boundary improvement.
 - Complete standard and custom fields remain available to the assistant.
 - One malformed search row does not discard valid rows; raw malformed rows are not returned.
+- `present_opportunity_shortlist` is app-only. It retrieves one to eight complete opportunities with
+  bounded concurrency and per-candidate deadlines, then attaches the sole user-facing view after
+  research is complete.
 
 ## Non-Goals
 
@@ -86,8 +96,8 @@ Federal, California, Pennsylvania, and Washington are bounded proofs of plugin-b
 - Exposing plugin capability discovery or custom-filter inputs.
 - Copying provider-native transformations into the MCP.
 - Making plugins mandatory for CommonGrants interoperability.
-- Adding or changing a visual interface.
-- Adding presentation tools or view metadata.
+- Styling the app to a final product identity.
+- Attaching views to search or detail tools.
 
 ## Acceptance Checks
 
