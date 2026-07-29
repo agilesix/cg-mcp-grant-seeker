@@ -19,8 +19,39 @@ const opportunity = OpportunityBaseSchema.parse({
     minAwardAmount: { amount: '10000', currency: 'USD' },
   },
   keyDates: {
-    closeDate: { eventType: 'singleDate', name: 'Close date', date: '2026-09-01' },
-    postDate: { eventType: 'singleDate', name: 'Post date', date: '2026-06-01' },
+    closeDate: {
+      eventType: 'dateRange',
+      name: 'Application window',
+      startDate: '2026-08-01',
+      startTime: null,
+      endDate: '2026-09-01',
+      endTime: '12:00:00',
+    },
+    postDate: {
+      eventType: 'singleDate',
+      name: 'Post date',
+      date: '2026-06-01',
+      time: null,
+    },
+    otherDates: {
+      officeHours: {
+        eventType: 'other',
+        name: 'Office hours',
+        details: 'Every Tuesday',
+      },
+      questionsDue: {
+        eventType: 'singleDate',
+        name: 'Questions due',
+        date: '2026-07-15',
+      },
+    },
+  },
+  customFields: {
+    agency: {
+      name: 'agency',
+      fieldType: 'object',
+      value: { code: 'DOL', contacts: [{ name: 'Program desk', active: true }] },
+    },
   },
   createdAt: '2026-05-01T12:00:00Z',
   lastModifiedAt: '2026-06-01T12:00:00Z',
@@ -131,8 +162,13 @@ describe('MCP tool result contracts', () => {
             {
               id: OPPORTUNITY_ID,
               keyDates: {
-                postDate: { date: '2026-06-01' },
-                closeDate: { date: '2026-09-01' },
+                postDate: { date: '2026-06-01', time: null },
+                closeDate: {
+                  startDate: '2026-08-01',
+                  startTime: null,
+                  endDate: '2026-09-01',
+                  endTime: '12:00:00',
+                },
               },
               createdAt: '2026-05-01T12:00:00.000Z',
               lastModifiedAt: '2026-06-01T12:00:00.000Z',
@@ -146,11 +182,72 @@ describe('MCP tool result contracts', () => {
       opportunity: {
         id: OPPORTUNITY_ID,
         keyDates: {
-          postDate: { date: '2026-06-01' },
-          closeDate: { date: '2026-09-01' },
+          postDate: { date: '2026-06-01', time: null },
+          closeDate: {
+            startDate: '2026-08-01',
+            startTime: null,
+            endDate: '2026-09-01',
+            endTime: '12:00:00',
+          },
         },
         createdAt: '2026-05-01T12:00:00.000Z',
         lastModifiedAt: '2026-06-01T12:00:00.000Z',
+      },
+    });
+    expect(
+      (search.structuredContent as { sources: Array<{ opportunities: unknown[] }> }).sources
+        .at(0)!
+        .opportunities.at(0),
+    ).toEqual(onWire(opportunity));
+    expect((detail.structuredContent as { opportunity: unknown }).opportunity).toEqual(
+      onWire(opportunity),
+    );
+  });
+
+  it('fails closed when an SDK value cannot satisfy the JSON wire contract', async () => {
+    const invalidWireOpportunity = {
+      ...opportunity,
+      keyDates: {
+        ...opportunity.keyDates,
+        postDate: {
+          eventType: 'singleDate',
+          name: 'Post date',
+          date: '2026-06-01',
+          time: '12:00:00Z',
+        },
+      },
+    } as unknown as Opportunity;
+    const client = await connect([
+      fakeClient(
+        'federal',
+        async () => searchResult([invalidWireOpportunity]),
+        async () => invalidWireOpportunity,
+      ),
+    ]);
+
+    const search = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'federal' },
+    });
+    const detail = await client.callTool({
+      name: 'get_opportunity',
+      arguments: { source: 'federal', id: OPPORTUNITY_ID },
+    });
+
+    expect(search.structuredContent).toMatchObject({
+      sources: [
+        {
+          status: 'error',
+          opportunities: [],
+          omittedInvalidRows: 0,
+        },
+      ],
+    });
+    expect(detail).toMatchObject({
+      isError: true,
+      structuredContent: {
+        status: 'error',
+        opportunity: null,
       },
     });
   });
@@ -269,7 +366,12 @@ describe('MCP tool result contracts', () => {
             {
               keyDates: {
                 postDate: { date: '2026-06-01' },
-                closeDate: { date: '2026-09-01' },
+                closeDate: {
+                  startDate: '2026-08-01',
+                  startTime: null,
+                  endDate: '2026-09-01',
+                  endTime: '12:00:00',
+                },
                 otherDates: {
                   questionsDue: { name: 'Questions due', date: '2026-07-15' },
                 },

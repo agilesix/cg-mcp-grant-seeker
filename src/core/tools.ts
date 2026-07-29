@@ -1,6 +1,6 @@
-import { OpportunityBaseSchema } from '@common-grants/sdk/schemas';
 import { z } from 'zod3';
 import type { ICommonGrantsClient, SearchParams, SearchResult } from './types.js';
+import { OpportunityWireSchema, wireOpportunity } from './wire.js';
 
 /** The base CommonGrants opportunity statuses (see {@link OpportunityStatus}). */
 const STATUS_VALUES = ['open', 'forecasted', 'closed', 'custom'] as const;
@@ -15,7 +15,7 @@ const sourceObjectSchema = z.object(sourceSchema);
 const searchResultSchema = z.object({
   source: sourceObjectSchema,
   status: z.enum(['success', 'empty', 'error']),
-  opportunities: z.array(OpportunityBaseSchema),
+  opportunities: z.array(OpportunityWireSchema),
   total: z.number().int().nonnegative().nullable(),
   page: z.number().int().positive(),
   hasNextPage: z.boolean().nullable(),
@@ -24,10 +24,8 @@ const searchResultSchema = z.object({
   error: z.string().nullable(),
 });
 
-type Source = z.infer<typeof sourceObjectSchema>;
-
-type WireOpportunity = z.input<typeof OpportunityBaseSchema>;
 type SearchOutcome = z.input<typeof searchResultSchema>;
+type Source = z.infer<typeof sourceObjectSchema>;
 
 type CoreToolDefinition<TInputSchema extends z.ZodRawShape> = Record<string, unknown> & {
   inputSchema: TInputSchema;
@@ -50,16 +48,6 @@ function errorMessage(err: unknown): string {
 
 function sourceValue(client: ICommonGrantsClient): Source {
   return { name: client.name, label: client.label };
-}
-
-/**
- * SDK parsing intentionally turns protocol dates and timestamps into Date objects.
- * MCP structuredContent is JSON, so serialize once at the transport boundary.
- * SDK 0.6.1 serializes protocol date-only values as YYYY-MM-DD while ordinary
- * timestamps retain their full ISO representation.
- */
-function wireOpportunity(opportunity: Awaited<ReturnType<ICommonGrantsClient['getOpportunity']>>) {
-  return JSON.parse(JSON.stringify(opportunity)) as WireOpportunity;
 }
 
 function paginationValue(result: SearchResult, requestedPage: number) {
@@ -229,7 +217,7 @@ export function registerTools(
       outputSchema: {
         source: sourceObjectSchema,
         status: z.enum(['success', 'error']),
-        opportunity: OpportunityBaseSchema.nullable(),
+        opportunity: OpportunityWireSchema.nullable(),
         error: z.string().nullable(),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
