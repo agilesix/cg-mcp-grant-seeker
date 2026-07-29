@@ -195,4 +195,23 @@ describe('Skybridge app boundary', () => {
       serializedOpportunity,
     );
   });
+
+  it('adds the final-shortlist tool only to the hosted app', async () => {
+    const sources = defaultSources();
+    const coreClient = await connect(createServer(sources));
+    const appClient = await connect(createAppServer(sources));
+    const [coreTools, appTools] = await Promise.all([
+      coreClient.listTools(),
+      appClient.listTools(),
+    ]);
+
+    expect(coreTools.tools.map(({ name }) => name)).not.toContain('present_opportunity_shortlist');
+    const presentationTool = appTools.tools.find(
+      ({ name }) => name === 'present_opportunity_shortlist',
+    );
+    expect(presentationTool).toBeDefined();
+    expect(JSON.stringify(presentationTool?.inputSchema)).toContain('"minItems":1');
+    expect(JSON.stringify(presentationTool?.inputSchema)).toContain('"maxItems":8');
+    expect(JSON.stringify(presentationTool?.outputSchema)).toContain('"presentationId"');
+  });
 });

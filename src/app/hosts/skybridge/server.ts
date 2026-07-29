@@ -5,6 +5,7 @@ import { registerTools } from '../../../core/tools.js';
 import type { CoreToolRegistrar } from '../../../core/tools.js';
 import type { SourceConfig } from '../../../core/types.js';
 import type { z } from 'zod3';
+import { registerSkybridgeAppTools } from './register-app-tools.js';
 
 /**
  * Adapts Skybridge's definition-object signature to the minimal registration
@@ -37,6 +38,8 @@ function coreRegistrationAdapter(server: SkybridgeMcpServer): CoreToolRegistrar 
  */
 export function createAppServer(sources: SourceConfig[]): SkybridgeMcpServer {
   const server = new SkybridgeMcpServer(SERVER_INFO, {});
-  registerTools(coreRegistrationAdapter(server), createClients(sources));
+  const clients = createClients(sources);
+  registerTools(coreRegistrationAdapter(server), clients);
+  registerSkybridgeAppTools(server, clients);
   return server;
 }
