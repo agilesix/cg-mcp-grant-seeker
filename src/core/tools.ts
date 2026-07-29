@@ -1,6 +1,5 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { OpportunityBaseSchema } from '@common-grants/sdk/schemas';
-import { z } from 'zod';
+import { z } from 'zod3';
 import type { ICommonGrantsClient, SearchParams, SearchResult } from './types.js';
 
 /** The base CommonGrants opportunity statuses (see {@link OpportunityStatus}). */
@@ -29,6 +28,21 @@ type Source = z.infer<typeof sourceObjectSchema>;
 
 type WireOpportunity = z.input<typeof OpportunityBaseSchema>;
 type SearchOutcome = z.input<typeof searchResultSchema>;
+
+type CoreToolDefinition<TInputSchema extends z.ZodRawShape> = Record<string, unknown> & {
+  inputSchema: TInputSchema;
+};
+
+/**
+ * The only server capability required by the CommonGrants tools. The input
+ * schema and handler argument remain linked so adapter casts cannot hide a
+ * contract mismatch.
+ */
+export type CoreToolRegistrar = <TInputSchema extends z.ZodRawShape>(
+  name: string,
+  definition: CoreToolDefinition<TInputSchema>,
+  handler: (input: z.output<z.ZodObject<TInputSchema>>) => Promise<unknown>,
+) => void;
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -109,7 +123,10 @@ async function searchOne(
  * Tool annotations (readOnlyHint, openWorldHint) are required by the Claude
  * Connectors Directory and the OpenAI Apps SDK — do not drop them.
  */
-export function registerTools(server: McpServer, clients: ICommonGrantsClient[]): void {
+export function registerTools(
+  registerTool: CoreToolRegistrar,
+  clients: ICommonGrantsClient[],
+): void {
   if (clients.length === 0) {
     throw new Error('registerTools requires at least one configured source.');
   }
@@ -118,7 +135,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
   const names = clients.map((c) => c.name) as [string, ...string[]];
   const sourceEnum = z.enum(names);
 
-  server.registerTool(
+  registerTool(
     'list_grant_sources',
     {
       title: 'List grant sources',
@@ -139,7 +156,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
     },
   );
 
-  server.registerTool(
+  registerTool(
     'search_opportunities',
     {
       title: 'Search grant opportunities',
@@ -192,7 +209,7 @@ export function registerTools(server: McpServer, clients: ICommonGrantsClient[])
     },
   );
 
-  server.registerTool(
+  registerTool(
     'get_opportunity',
     {
       title: 'Get grant opportunity',

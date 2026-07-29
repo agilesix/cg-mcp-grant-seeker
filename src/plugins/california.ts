@@ -1,5 +1,5 @@
 import { definePlugin } from '@common-grants/sdk/extensions';
-import { z } from 'zod/v3';
+import { z } from 'zod3';
 
 /*
  * Consumer-side subset of the California plugin contract.

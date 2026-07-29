@@ -40,6 +40,7 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
 
       - name: Upload Worker version (preview)
         id: deploy
@@ -61,6 +62,10 @@ jobs:
             echo "::warning::Could not extract preview URL from wrangler output"
           fi
           echo "url=${url}" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test deployed MCP and Worker-backed source
+        if: steps.deploy.outputs.url != ''
+        run: node scripts/smoke-remote.mjs "${{ steps.deploy.outputs.url }}/mcp"
 
       - name: Comment preview URL on PR
         if: steps.deploy.outputs.url != ''

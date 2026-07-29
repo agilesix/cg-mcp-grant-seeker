@@ -36,7 +36,7 @@ corepack enable
 pnpm install
 
 export FEDERAL_API_TOKEN="your-simpler-grants-key"   # optional; PA + CA + WA are public
-pnpm start
+pnpm run start:stdio
 ```
 
 Then connect it to a client — see [DEVELOPMENT.md](DEVELOPMENT.md) for the Claude
@@ -98,20 +98,26 @@ src/
 │   │              # SDK-backed client and lossless tool registration
 │   ├── client.ts  #   constructs and calls @common-grants/sdk clients
 │   ├── tools.ts   #   list_grant_sources / search_opportunities / get_opportunity
-│   ├── server.ts  #   createServer(sources) → wired McpServer
+│   ├── server.ts  #   createServer(sources) → standard MCP SDK server
 │   └── types.ts   #   SDK-derived domain types and the client seam
+├── app/           # host-neutral app tools, models, and components
+│   └── hosts/
+│       └── skybridge/
+│           └── server.ts  # adapts unchanged core tools to Skybridge
 ├── config/        # data-driven source registry (types, Zod schema,
 │                  # defineConfig, defaults, jiti loader)
 ├── plugins/       # localized consumer plugins for built-in source extensions
 ├── stdio.ts       # local entrypoint (Claude Desktop, Inspector, self-hosters)
-└── worker.ts      # deployed stateless Streamable HTTP Cloudflare Worker
+└── server.ts      # Skybridge HTTP entrypoint used by local and hosted runtimes
 ```
 
-The server depends on an `ICommonGrantsClient` interface rather than an SDK
+The shared core depends on an `ICommonGrantsClient` interface rather than an SDK
 client directly. SDK client construction and network calls stay in `client.ts`;
 domain types and enumerations are derived from the installed SDK. Tool results
 preserve the opportunity fields returned by the SDK instead of maintaining a
-second MCP-specific projection. The tool layer imports SDK schemas for its
+second MCP-specific projection. Skybridge is isolated to `src/app/` and the
+thin HTTP entrypoint; the standard MCP core and stdio server do not import it.
+The tool layer imports SDK schemas for its
 agent-facing output contract, so the boundary is intentionally narrow rather
 than absolute. See
 [docs/adr/001-architecture.md](docs/adr/001-architecture.md).
@@ -122,20 +128,21 @@ Both the Claude Connectors Directory and the OpenAI Apps SDK require a **remote,
 HTTPS-hosted** server; a single hosted URL is submitted to both. Because grant
 search is public, read-only data, the hosted server holds one server-side
 federal key and needs **no per-user OAuth** — users connect with zero config.
-The stdio server is for local/self-hosted use. The remote Cloudflare Worker is
-implemented and deployed at `https://mcp.cg.a6lab.ai/mcp` using stateless,
-JSON-response Streamable HTTP. See
+The stdio server is for local/self-hosted use. Skybridge packages the HTTP MCP
+entrypoint for local development and the remote Cloudflare Worker deployed at
+`https://mcp.cg.a6lab.ai/mcp`. See
 [docs/adr/002-hosting-and-distribution.md](docs/adr/002-hosting-and-distribution.md).
 
 ## Scripts
 
 | Script                                 | Purpose                                          |
 | -------------------------------------- | ------------------------------------------------ |
-| `pnpm start` / `pnpm run dev`          | Run the stdio server (dev watches for changes)   |
+| `pnpm run start:stdio` / `dev:stdio`   | Run the headless stdio MCP server                |
+| `pnpm start` / `pnpm run dev`          | Run the Skybridge HTTP server and local devtools |
 | `pnpm test` / `pnpm run test:coverage` | Run unit tests                                   |
 | `pnpm run checks`                      | Lint + format + typecheck                        |
 | `pnpm run ci`                          | Full CI sequence (types + checks + build + test) |
-| `pnpm run dev:worker`                  | Run the Cloudflare Worker locally                |
+| `pnpm run dev:worker`                  | Run the built Cloudflare Worker locally          |
 | `pnpm run deploy`                      | Deploy the remote Cloudflare Worker              |
 
 ## Contributing

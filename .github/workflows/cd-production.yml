@@ -1,7 +1,6 @@
 name: Production Deploy
 
-# Deploys the remote (Cloudflare Workers) MCP server. This becomes meaningful
-# once src/worker.ts is implemented (Phase 2). Until then it deploys the stub.
+# Deploys the Skybridge-packaged remote MCP server to Cloudflare Workers.
 #
 # Required repo/environment secrets:
 #   CLOUDFLARE_API_TOKEN   (Workers edit)

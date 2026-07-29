@@ -7,6 +7,8 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      '.skybridge/**',
+      '.vercel/**',
       '.wrangler/**',
       'node_modules/**',
       'coverage/**',
@@ -28,12 +30,20 @@ export default tseslint.config(
       ],
     },
   },
-  // Portability zone: Cloudflare Workers types may only be imported from the
-  // Worker entrypoint. Every other module stays hosting-agnostic so the same
-  // core runs under stdio (local), a Node host, or Cloudflare Workers.
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        setTimeout: 'readonly',
+        URL: 'readonly',
+      },
+    },
+  },
+  // Portability zone: hosting-specific types stay outside the shared core.
   {
     files: ['src/**/*.ts'],
-    ignores: ['src/worker.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -41,7 +51,42 @@ export default tseslint.config(
           paths: [
             {
               name: '@cloudflare/workers-types',
-              message: 'Workers-specific types may only be imported from src/worker.ts.',
+              message: 'Workers-specific types belong in a hosting adapter, not shared code.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // Skybridge is a replaceable MCP Apps host. App logic and shared components
+  // must remain framework-neutral; only the host adapter may import it.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/app/hosts/skybridge/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^(?:skybridge(?:/|$)|@skybridge/)',
+              message: 'Skybridge imports belong in src/app/hosts/skybridge/.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/app/{tools,models,components}/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '(^|/)hosts/',
+              message: 'Host-neutral app code may not depend on a host adapter.',
             },
           ],
         },
@@ -49,15 +94,21 @@ export default tseslint.config(
     },
   },
   // src/core/ is the hosting- and transport-agnostic heart of the server and a
-  // candidate for future extraction to its own package. It may only depend on
-  // zod, @common-grants/sdk, and @modelcontextprotocol/sdk — never on other
-  // src/** directories, which would create a cycle and block extraction.
+  // candidate for future extraction to its own package. It may depend on
+  // protocol and validation libraries, but never on app/hosting adapters or
+  // other src/** directories.
   {
     files: ['src/core/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
+          paths: [
+            {
+              name: 'skybridge/server',
+              message: 'Skybridge belongs in src/app/, not the shared MCP core.',
+            },
+          ],
           patterns: [
             {
               group: ['../*', '../../*', '../../../*'],

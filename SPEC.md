@@ -2,10 +2,9 @@
 
 ## Status
 
-Existing headless MCP server with bounded federal, California, Pennsylvania, and Washington consumer-plugin
-proofs. This
-specification records the source-integration contract without introducing a visual interface or
-changing the current research-tool contract.
+Headless MCP server with bounded federal, California, Pennsylvania, and Washington consumer-plugin
+proofs. Skybridge now packages the existing tool surface for HTTP deployment and local development
+without introducing a visual interface or changing the research-tool contract.
 
 ## Value Proposition
 
@@ -48,6 +47,10 @@ Core actions:
   and SDK—not the MCP—own the summary-versus-detail boundary.
 - SDK 0.6.1 owns protocol-safe JSON serialization for plain dates. The MCP performs ordinary JSON
   serialization at its structured-content boundary without field-name-specific date handling.
+- Skybridge owns HTTP packaging and the local HTTP development harness. The stdio entrypoint remains
+  available for headless clients and self-hosters.
+- Skybridge is isolated to `src/app/` and the thin HTTP entrypoint. `src/core/` remains a standard
+  MCP SDK implementation and is shared unchanged with stdio.
 
 ## Consumer Plugin Proofs
 
@@ -84,6 +87,7 @@ Federal, California, Pennsylvania, and Washington are bounded proofs of plugin-b
 - Copying provider-native transformations into the MCP.
 - Making plugins mandatory for CommonGrants interoperability.
 - Adding or changing a visual interface.
+- Adding presentation tools or view metadata.
 
 ## Acceptance Checks
 
@@ -96,6 +100,9 @@ Federal, California, Pennsylvania, and Washington are bounded proofs of plugin-b
 - No state conditional is introduced in core tools.
 - Each provider requires one localized plugin module and one source-configuration reference.
 - Tests, lint, formatting, type checking, build, and live validation pass.
+- The Skybridge HTTP endpoint and stdio entrypoint expose the same three headless tools and schemas.
+- An automated parity test compares the named core tools' meaningful contract fields across both
+  runtimes while ignoring harmless host-added defaults and later app-only tools.
 
 ## Follow-up Decision
 
