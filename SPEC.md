@@ -96,7 +96,8 @@ Federal, California, Pennsylvania, and Washington are bounded proofs of plugin-b
 - Exposing plugin capability discovery or custom-filter inputs.
 - Copying provider-native transformations into the MCP.
 - Making plugins mandatory for CommonGrants interoperability.
-- Styling the app to a final product identity.
+- Finalizing product identity or brand standards. The app may use the configurable prototype visual
+  system in ADR 006, with a CommonGrants-inspired default and a host-neutral alternative.
 - Attaching views to search or detail tools.
 
 ## Acceptance Checks

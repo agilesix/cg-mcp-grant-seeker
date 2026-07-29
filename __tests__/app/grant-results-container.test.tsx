@@ -11,6 +11,7 @@ const host = vi.hoisted(() => ({
   output: null as PresentShortlistOutput | null,
   persisted: null as ShortlistViewState | null,
   openExternal: vi.fn(),
+  visualTheme: 'common-grants' as 'common-grants' | 'host-neutral',
 }));
 
 vi.mock('skybridge/web', async () => {
@@ -42,6 +43,12 @@ vi.mock('skybridge/web', async () => {
     },
   };
 });
+
+vi.mock('../../src/app/hosts/skybridge/theme-config.js', () => ({
+  get visualTheme() {
+    return host.visualTheme;
+  },
+}));
 
 import GrantResultsContainer from '../../src/app/hosts/skybridge/views/grant-results.js';
 
@@ -105,37 +112,44 @@ describe('GrantResultsContainer', () => {
     container.remove();
   });
 
-  it('persists navigation across a remount, restores focus, and resets for a new presentation', async () => {
-    await act(async () => root.render(<GrantResultsContainer />));
+  it.each(['common-grants', 'host-neutral'] as const)(
+    'persists navigation and focus under the %s preset',
+    async (visualTheme) => {
+      host.visualTheme = visualTheme;
+      await act(async () => root.render(<GrantResultsContainer />));
+      expect(container.querySelector('.grant-app')?.getAttribute('data-visual-theme')).toBe(
+        visualTheme,
+      );
 
-    const showMore = Array.from(container.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Show more results'),
-    );
-    expect(showMore).toBeTruthy();
-    await act(async () => showMore?.click());
-    expect(container.querySelectorAll('.result-row')).toHaveLength(6);
+      const showMore = Array.from(container.querySelectorAll('button')).find((button) =>
+        button.textContent?.includes('Show more results'),
+      );
+      expect(showMore).toBeTruthy();
+      await act(async () => showMore?.click());
+      expect(container.querySelectorAll('.result-row')).toHaveLength(6);
 
-    const firstRow = container.querySelector<HTMLButtonElement>('.result-row');
-    expect(firstRow).toBeTruthy();
-    await act(async () => firstRow?.click());
-    expect(container.querySelector('.detail-view')).toBeTruthy();
-    expect(document.activeElement).toBe(container.querySelector('.detail-header h1'));
+      const firstRow = container.querySelector<HTMLButtonElement>('.result-row');
+      expect(firstRow).toBeTruthy();
+      await act(async () => firstRow?.click());
+      expect(container.querySelector('.detail-view')).toBeTruthy();
+      expect(document.activeElement).toBe(container.querySelector('.detail-header h1'));
 
-    await act(async () => root.unmount());
-    root = createRoot(container);
-    await act(async () => root.render(<GrantResultsContainer />));
-    expect(container.querySelector('.detail-view')).toBeTruthy();
+      await act(async () => root.unmount());
+      root = createRoot(container);
+      await act(async () => root.render(<GrantResultsContainer />));
+      expect(container.querySelector('.detail-view')).toBeTruthy();
 
-    const back = Array.from(container.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Back to shortlist'),
-    );
-    await act(async () => back?.click());
-    expect(container.querySelectorAll('.result-row')).toHaveLength(6);
-    expect(document.activeElement).toBe(container.querySelector('.result-row'));
+      const back = Array.from(container.querySelectorAll('button')).find((button) =>
+        button.textContent?.includes('Back to shortlist'),
+      );
+      await act(async () => back?.click());
+      expect(container.querySelectorAll('.result-row')).toHaveLength(6);
+      expect(document.activeElement).toBe(container.querySelector('.result-row'));
 
-    host.output = output('22222222-2222-4222-8222-222222222222');
-    await act(async () => root.render(<GrantResultsContainer />));
-    expect(container.querySelector('.detail-view')).toBeFalsy();
-    expect(container.querySelectorAll('.result-row')).toHaveLength(5);
-  });
+      host.output = output('22222222-2222-4222-8222-222222222222');
+      await act(async () => root.render(<GrantResultsContainer />));
+      expect(container.querySelector('.detail-view')).toBeFalsy();
+      expect(container.querySelectorAll('.result-row')).toHaveLength(5);
+    },
+  );
 });

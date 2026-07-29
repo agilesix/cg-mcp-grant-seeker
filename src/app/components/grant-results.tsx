@@ -1,3 +1,4 @@
+import '../theme/theme.css';
 import './grant-results.css';
 
 import { useEffect, useMemo, useRef } from 'react';
@@ -8,6 +9,7 @@ import {
   type DetailRow,
 } from '../models/opportunity-display.js';
 import type { PresentShortlistOutput, ShortlistItem } from '../tools/present-shortlist.js';
+import type { VisualTheme } from '../theme/theme.js';
 
 export interface HostInsets {
   top: number;
@@ -22,6 +24,7 @@ export interface GrantResultsProps {
   visibleCount: number;
   expandedDescriptionKey: string | null;
   colorScheme: 'light' | 'dark';
+  visualTheme: VisualTheme;
   insets: HostInsets;
   onSelect: (key: string) => void;
   onBack: () => void;
@@ -196,11 +199,13 @@ function DetailView({
 
 export function GrantResultsLoading({
   colorScheme,
+  visualTheme,
   insets,
-}: Pick<GrantResultsProps, 'colorScheme' | 'insets'>) {
+}: Pick<GrantResultsProps, 'colorScheme' | 'visualTheme' | 'insets'>) {
   return (
     <main
       className={`grant-app ${colorScheme}`}
+      data-visual-theme={visualTheme}
       style={{
         paddingTop: insets.top,
         paddingRight: insets.right,
@@ -217,12 +222,14 @@ export function GrantResultsLoading({
 
 export function GrantResultsMessage({
   colorScheme,
+  visualTheme,
   insets,
   message,
-}: Pick<GrantResultsProps, 'colorScheme' | 'insets'> & { message: string }) {
+}: Pick<GrantResultsProps, 'colorScheme' | 'visualTheme' | 'insets'> & { message: string }) {
   return (
     <main
       className={`grant-app ${colorScheme}`}
+      data-visual-theme={visualTheme}
       style={{
         paddingTop: insets.top,
         paddingRight: insets.right,
@@ -243,6 +250,7 @@ export default function GrantResults({
   visibleCount,
   expandedDescriptionKey,
   colorScheme,
+  visualTheme,
   insets,
   onSelect,
   onBack,
@@ -280,7 +288,11 @@ export default function GrantResults({
   if (selected) {
     const key = itemKey(selected);
     return (
-      <main className={`grant-app ${colorScheme}`} style={rootStyle}>
+      <main
+        className={`grant-app ${colorScheme}`}
+        data-visual-theme={visualTheme}
+        style={rootStyle}
+      >
         <DetailView
           item={selected}
           headingRef={detailHeadingRef}
@@ -297,7 +309,7 @@ export default function GrantResults({
   }
 
   return (
-    <main className={`grant-app ${colorScheme}`} style={rootStyle}>
+    <main className={`grant-app ${colorScheme}`} data-visual-theme={visualTheme} style={rootStyle}>
       <header className="app-header">
         <p className="eyebrow">Grant opportunities</p>
         <h1>Opportunity shortlist</h1>

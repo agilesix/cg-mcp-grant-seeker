@@ -14,6 +14,7 @@ import type {
   PresentShortlistInput,
   PresentShortlistOutput,
 } from '../../../tools/present-shortlist.js';
+import { visualTheme } from '../theme-config.js';
 
 type JsonObject<T> = T & Record<string, unknown>;
 
@@ -42,13 +43,16 @@ export default function GrantResultsContainer() {
   }, [initialVisibleCount, output, persistedState.presentationId, setPersistedState]);
 
   if (tool.isPending) {
-    return <GrantResultsLoading colorScheme={colorScheme} insets={insets} />;
+    return (
+      <GrantResultsLoading colorScheme={colorScheme} visualTheme={visualTheme} insets={insets} />
+    );
   }
 
   if (!output) {
     return (
       <GrantResultsMessage
         colorScheme={colorScheme}
+        visualTheme={visualTheme}
         insets={insets}
         message="The grant shortlist could not be displayed."
       />
@@ -69,6 +73,7 @@ export default function GrantResultsContainer() {
         visibleCount={state.visibleCount}
         expandedDescriptionKey={state.expandedDescriptionKey}
         colorScheme={colorScheme}
+        visualTheme={visualTheme}
         insets={insets}
         onSelect={(selectedKey) =>
           setPersistedState((current) => ({
