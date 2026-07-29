@@ -118,4 +118,11 @@ describe('loadConfig defaults', () => {
     expect(byName.get('federal')?.plugin).toBe(FederalPlugin);
     expect(byName.get('wa')?.plugin).toBe(WashingtonPlugin);
   });
+
+  it('uses the canonical Washington API domain', async () => {
+    const config = await loadConfig({ env: {}, cwd: '/nonexistent-dir-xyz' });
+    const washington = config.sources.find((source) => source.name === 'wa');
+
+    expect(washington?.baseUrl).toBe('https://wa.api.cg.a6lab.ai');
+  });
 });

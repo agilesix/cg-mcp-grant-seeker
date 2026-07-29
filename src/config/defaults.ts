@@ -35,7 +35,7 @@ export function defaultSources(federalApiToken?: string): SourceConfig[] {
     {
       name: 'wa',
       label: 'Washington',
-      baseUrl: 'https://wa-commongrants-api.brian-derfer.workers.dev',
+      baseUrl: 'https://wa.api.cg.a6lab.ai',
       plugin: WashingtonPlugin,
     },
   ];
