@@ -1,0 +1,75 @@
+.grant-app[data-visual-theme='common-grants'] {
+  --grant-color-surface: #ffffff;
+  --grant-color-surface-subtle: #f5f6f8;
+  --grant-color-text: #17181c;
+  --grant-color-muted: #545861;
+  --grant-color-border: #858a92;
+  --grant-color-accent: #2a583d;
+  --grant-color-on-accent: #ffffff;
+  --grant-color-danger: #8f2929;
+  --grant-color-danger-surface: #f9e8e8;
+  --grant-color-focus: #0b57d0;
+  --grant-font-family:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --grant-font-size-title: clamp(1.55rem, 4vw, 2.2rem);
+  --grant-font-size-heading: 1.05rem;
+  --grant-font-size-eyebrow: 0.75rem;
+  --grant-font-weight-strong: 700;
+  --grant-letter-spacing-eyebrow: 0.08em;
+  --grant-radius-app: 14px;
+  --grant-radius-card: 10px;
+  --grant-radius-control: 8px;
+  --grant-radius-pill: 999px;
+  --grant-shadow-app: none;
+}
+
+.grant-app[data-visual-theme='common-grants'].dark {
+  --grant-color-surface: #17181c;
+  --grant-color-surface-subtle: #24272f;
+  --grant-color-text: #eceef2;
+  --grant-color-muted: #b1b5be;
+  --grant-color-border: #6d727c;
+  --grant-color-accent: #a9d9bd;
+  --grant-color-on-accent: #102118;
+  --grant-color-danger: #ffb4ab;
+  --grant-color-danger-surface: #3b2020;
+  --grant-color-focus: #8ab4f8;
+}
+
+.grant-app[data-visual-theme='host-neutral'] {
+  --grant-color-surface: var(--color-background-primary, #ffffff);
+  --grant-color-surface-subtle: var(--color-background-secondary, #f5f7f5);
+  --grant-color-text: var(--color-text-primary, #202124);
+  --grant-color-muted: var(--color-text-secondary, #5f6862);
+  --grant-color-border: var(--color-border-primary, #7d8781);
+  --grant-color-accent: var(--color-text-link, #176b4a);
+  --grant-color-on-accent: #ffffff;
+  --grant-color-danger: #8b1a1a;
+  --grant-color-danger-surface: #fae9e9;
+  --grant-color-focus: #0b57d0;
+  --grant-font-family:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --grant-font-size-title: clamp(1.55rem, 4vw, 2.2rem);
+  --grant-font-size-heading: 1.05rem;
+  --grant-font-size-eyebrow: 0.75rem;
+  --grant-font-weight-strong: 700;
+  --grant-letter-spacing-eyebrow: 0.08em;
+  --grant-radius-app: 12px;
+  --grant-radius-card: 9px;
+  --grant-radius-control: 7px;
+  --grant-radius-pill: 999px;
+  --grant-shadow-app: none;
+}
+
+.grant-app[data-visual-theme='host-neutral'].dark {
+  --grant-color-surface: var(--color-background-primary, #171b18);
+  --grant-color-surface-subtle: var(--color-background-secondary, #222824);
+  --grant-color-text: var(--color-text-primary, #f0f3f1);
+  --grant-color-muted: var(--color-text-secondary, #aeb7b1);
+  --grant-color-border: var(--color-border-primary, #737e77);
+  --grant-color-accent: var(--color-text-link, #9adbb9);
+  --grant-color-on-accent: #102118;
+  --grant-color-danger: #ffb4ab;
+  --grant-color-danger-surface: #3b2020;
+  --grant-color-focus: #8ab4f8;
+}

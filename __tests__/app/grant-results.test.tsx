@@ -57,6 +57,7 @@ function render(overrides: Partial<Parameters<typeof GrantResults>[0]> = {}) {
       visibleCount={5}
       expandedDescriptionKey={null}
       colorScheme="light"
+      visualTheme="common-grants"
       insets={{ top: 0, right: 0, bottom: 0, left: 0 }}
       onSelect={vi.fn()}
       onBack={vi.fn()}
@@ -87,5 +88,21 @@ describe('GrantResults', () => {
     expect(html).not.toContain('Who can apply');
     expect(html).toContain('View provider page');
     expect(html).toContain('Back to shortlist');
+  });
+
+  it('keeps content and structure identical across visual presets', () => {
+    const commonGrants = render({ visualTheme: 'common-grants' });
+    const hostNeutral = render({ visualTheme: 'host-neutral' });
+
+    expect(commonGrants.replace('common-grants', 'THEME')).toBe(
+      hostNeutral.replace('host-neutral', 'THEME'),
+    );
+  });
+
+  it('carries visual theme and host color scheme as independent root attributes', () => {
+    const html = render({ visualTheme: 'host-neutral', colorScheme: 'dark' });
+
+    expect(html).toContain('class="grant-app dark"');
+    expect(html).toContain('data-visual-theme="host-neutral"');
   });
 });
