@@ -8,12 +8,12 @@ every registered source and returns combined, labeled results.
 
 Ships with four sources out of the box:
 
-| Source                           | URL                                                    | Auth                          |
-| -------------------------------- | ------------------------------------------------------ | ----------------------------- |
-| **federal** — Simpler.Grants.gov | `https://api.simpler.grants.gov`                       | API key (`FEDERAL_API_TOKEN`) |
-| **pa** — Pennsylvania            | `https://pa.api.cg.a6lab.ai`                           | none                          |
-| **ca** — California              | `https://ca.api.cg.a6lab.ai`                           | none                          |
-| **wa** — Washington FundHub      | `https://wa-commongrants-api.brian-derfer.workers.dev` | none                          |
+| Source                           | URL                              | Auth                          |
+| -------------------------------- | -------------------------------- | ----------------------------- |
+| **federal** — Simpler.Grants.gov | `https://api.simpler.grants.gov` | API key (`FEDERAL_API_TOKEN`) |
+| **pa** — Pennsylvania            | `https://pa.api.cg.a6lab.ai`     | none                          |
+| **ca** — California              | `https://ca.api.cg.a6lab.ai`     | none                          |
+| **wa** — Washington FundHub      | `https://wa.api.cg.a6lab.ai`     | none                          |
 
 Because they all speak CommonGrants, the same tools work against any additional
 source you register.
