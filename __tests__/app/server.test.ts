@@ -1,9 +1,12 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { OpportunityBaseSchema } from '@common-grants/sdk/schemas';
+import type { Plugin } from '@common-grants/sdk/extensions';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createAppServer } from '../../src/app/hosts/skybridge/server.js';
 import { defaultSources } from '../../src/config/defaults.js';
 import { createServer } from '../../src/core/server.js';
+import type { Opportunity, SearchResult, SourceConfig } from '../../src/core/types.js';
 
 interface ConnectableServer {
   connect(transport: ReturnType<typeof InMemoryTransport.createLinkedPair>[1]): Promise<void>;
@@ -75,5 +78,121 @@ describe('Skybridge app boundary', () => {
         { name: 'wa', label: 'Washington' },
       ],
     });
+  });
+
+  it('validates transform-free opportunity output through the hosted MCP adapter', async () => {
+    const opportunity = OpportunityBaseSchema.parse({
+      id: '11111111-1111-4111-8111-111111111111',
+      title: 'Hosted wire contract grant',
+      status: { value: 'open' },
+      description: 'Exercises nullable and local event times.',
+      keyDates: {
+        postDate: {
+          eventType: 'singleDate',
+          name: 'Posted',
+          date: '2026-07-01',
+          time: null,
+        },
+        closeDate: {
+          eventType: 'dateRange',
+          name: 'Application window',
+          startDate: '2026-08-01',
+          startTime: null,
+          endDate: '2026-08-31',
+          endTime: '12:00:00',
+        },
+        otherDates: {
+          questionsDue: {
+            eventType: 'singleDate',
+            name: 'Questions due',
+            date: '2026-07-15',
+          },
+          officeHours: {
+            eventType: 'other',
+            name: 'Office hours',
+            details: 'Every Tuesday',
+          },
+        },
+      },
+      customFields: {
+        metadata: {
+          name: 'metadata',
+          fieldType: 'object',
+          value: { nested: [{ enabled: true }] },
+        },
+      },
+      createdAt: '2026-06-01T12:00:00Z',
+      lastModifiedAt: '2026-07-01T12:30:00Z',
+    }) as Opportunity;
+    const plugin = {
+      schemas: {},
+      getClient: () => ({
+        opportunities: {
+          search: async () =>
+            ({
+              items: [opportunity],
+              errors: [],
+              paginationInfo: {
+                page: 1,
+                pageSize: 1,
+                totalItems: 1,
+                totalPages: 1,
+              },
+            }) as unknown as SearchResult,
+          get: async () => opportunity,
+        },
+      }),
+    } as unknown as Plugin;
+    const sources: SourceConfig[] = [
+      {
+        name: 'test',
+        label: 'Test source',
+        baseUrl: 'https://example.gov',
+        plugin,
+      },
+    ];
+    const client = await connect(createAppServer(sources));
+
+    await client.listTools();
+    const search = await client.callTool({
+      name: 'search_opportunities',
+      arguments: { source: 'test', limit: 1 },
+    });
+    const detail = await client.callTool({
+      name: 'get_opportunity',
+      arguments: { source: 'test', id: opportunity.id },
+    });
+
+    expect(search.structuredContent).toMatchObject({
+      sources: [
+        {
+          opportunities: [
+            {
+              keyDates: {
+                postDate: { date: '2026-07-01', time: null },
+                closeDate: { endTime: '12:00:00' },
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect(detail.structuredContent).toMatchObject({
+      opportunity: {
+        keyDates: {
+          postDate: { time: null },
+          closeDate: { startTime: null, endTime: '12:00:00' },
+        },
+      },
+    });
+    const serializedOpportunity = JSON.parse(JSON.stringify(opportunity));
+    expect(
+      (search.structuredContent as { sources: Array<{ opportunities: unknown[] }> }).sources
+        .at(0)!
+        .opportunities.at(0),
+    ).toEqual(serializedOpportunity);
+    expect((detail.structuredContent as { opportunity: unknown }).opportunity).toEqual(
+      serializedOpportunity,
+    );
   });
 });
