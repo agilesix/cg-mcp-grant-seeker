@@ -20,12 +20,12 @@ pnpm install
 ## Running the server locally (stdio)
 
 ```bash
-# Optional: a federal key enables the federal source (PA and CA are public).
+# Optional: a federal key enables the federal source (PA, CA, and WA are public).
 export FEDERAL_API_TOKEN="your-simpler-grants-key"
 
-pnpm run dev     # tsx watch src/stdio.ts, hot-reloads on change
+pnpm run dev:stdio     # tsx watch src/stdio.ts, hot-reloads on change
 # or
-pnpm start       # one-shot
+pnpm run start:stdio   # one-shot
 ```
 
 An MCP stdio server communicates over stdin/stdout, so there's nothing to see
@@ -46,14 +46,7 @@ pnpm dlx @modelcontextprotocol/inspector ./node_modules/.bin/tsx src/stdio.ts
 
 ## Connecting to Claude Desktop
 
-Build once so the client can launch plain `node` (most robust, no runtime tsx
-resolution):
-
-```bash
-pnpm build
-```
-
-Then add to `~/Library/Application Support/Claude/claude_desktop_config.json`
+Add this to `~/Library/Application Support/Claude/claude_desktop_config.json`
 (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows), and fully
 restart Claude Desktop:
 
@@ -61,23 +54,20 @@ restart Claude Desktop:
 {
   "mcpServers": {
     "commongrants": {
-      "command": "node",
-      "args": ["/absolute/path/to/cg-mcp-grant-seeker/dist/src/stdio.js"],
+      "command": "/absolute/path/to/cg-mcp-grant-seeker/node_modules/.bin/tsx",
+      "args": ["/absolute/path/to/cg-mcp-grant-seeker/src/stdio.ts"],
       "env": { "FEDERAL_API_TOKEN": "your-simpler-grants-key" }
     }
   }
 }
 ```
 
-(For a no-build setup you can instead use `"command": "npx"` with
-`"args": ["tsx", "/absolute/path/to/cg-mcp-grant-seeker/src/stdio.ts"]`.)
-
 Ask Claude: _"find workforce development grants"_ — it fans out across federal,
-PA, and CA and returns labeled results in one response.
+PA, CA, and WA and returns labeled results in one response.
 
 ## Configuration
 
-By default the server registers three sources (federal, PA, CA). To add your
+By default the server registers four sources (federal, PA, CA, WA). To add your
 own sources or supply your own credentials, drop a `commongrants-mcp.config.ts`
 in the working directory (or point `CG_MCP_CONFIG` at one). See
 [`examples/commongrants-mcp.config.ts`](examples/commongrants-mcp.config.ts).
@@ -117,15 +107,17 @@ pnpm run format          # prettier --write .
 ## The remote server (Cloudflare Workers)
 
 The remote server — the artifact submitted to the Claude and OpenAI
-marketplaces — lives in [`src/worker.ts`](src/worker.ts). It serves the same
-`createServer()` core over the MCP SDK's Web-standard Streamable HTTP transport,
-run **statelessly** (no Durable Object). See
+marketplaces — starts in [`src/server.ts`](src/server.ts). Skybridge packages
+the same `createServer()` core as a Streamable HTTP MCP endpoint and emits the
+Cloudflare entrypoint during `pnpm build`. See
 [`docs/adr/002-hosting-and-distribution.md`](docs/adr/002-hosting-and-distribution.md).
 
 ### Run it locally
 
 ```bash
 cp .dev.vars.example .dev.vars   # optional: add a FEDERAL_API_TOKEN for federal
+pnpm run dev                     # Skybridge server and devtools
+# or, after `pnpm build`
 pnpm run dev:worker              # wrangler dev on http://127.0.0.1:8787
 ```
 

@@ -33,13 +33,11 @@ We researched what each marketplace requires. The finding that shapes everything
    URL is submitted to both Claude and OpenAI — one deployment, two listings.
    This makes remote HTTP a **day-one, first-class** concern, not a later phase.
 
-2. **Host on Cloudflare Workers with the MCP SDK's Web-standard transport.**
+2. **Host on Cloudflare Workers through Skybridge.**
    This matches the sibling deployments and reuses the wrangler + GitHub
-   Actions model. The implemented server uses
-   `WebStandardStreamableHTTPServerTransport` in stateless, JSON-response mode,
-   which fits the current public, read-only tools without Durable Objects.
-   `McpAgent` remains a future option if the server adds session state,
-   authenticated mutations, or server-initiated streaming.
+   Actions model. Skybridge packages the shared MCP server as a Streamable HTTP
+   endpoint and emits the Cloudflare entrypoint during the production build.
+   The current public, read-only tools require no Durable Object.
 
 3. **No per-user OAuth — because grant search is public, read-only data.** The
    marketplaces mandate OAuth only for servers touching user accounts / private

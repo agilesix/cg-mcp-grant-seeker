@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Local (stdio) entrypoint. This is what runs when a user adds the server to
- * Claude Desktop or any stdio MCP client, and what `pnpm run dev` launches.
+ * Claude Desktop or any stdio MCP client, and what `pnpm run dev:stdio` launches.
  *
  * It loads the source registry (a user config file if present, otherwise the
  * built-in federal/pa/ca/wa defaults with FEDERAL_API_TOKEN from the env), builds

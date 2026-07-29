@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod3';
 import type { Plugin } from '@common-grants/sdk/extensions';
 
 const authSchema = z.discriminatedUnion('type', [

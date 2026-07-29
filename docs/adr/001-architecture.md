@@ -19,12 +19,13 @@ which require a hosted server — see ADR 002).
 
 ## Decision
 
-1. **A transport- and hosting-agnostic core.** `src/core/` builds a fully-wired
-   `McpServer` from a list of sources (`createServer(sources)`) and knows nothing
-   about how it's transported or where it runs. Entry points are thin: `stdio.ts`
-   connects it to `StdioServerTransport`; `worker.ts` serves it over stateless,
-   JSON-response Streamable HTTP on Cloudflare Workers. This mirrors the api-ca/api-pa
-   convention where only one or two files are host-aware.
+1. **A transport- and hosting-agnostic core.** `src/core/` builds a standard
+   MCP SDK `McpServer` from a list of sources (`createServer(sources)`) and knows
+   nothing about Skybridge, views, or where it runs. `stdio.ts` connects it to
+   `StdioServerTransport`. `src/app/hosts/skybridge/server.ts` is a narrow
+   registration adapter that places the same core tools on a Skybridge server;
+   the root `server.ts` lets Skybridge package that app server for Streamable
+   HTTP and Cloudflare. App-only tools and views belong under `src/app/`.
 
 2. **SDK network access sits behind an `ICommonGrantsClient` interface.** The
    server depends on this interface for API calls, so client upgrades and future
@@ -44,13 +45,9 @@ which require a hosted server — see ADR 002).
    with Zod. The hosted server reads its registry from the environment.
 
 4. **Cloudflare Workers is the remote runtime** (ADR 002), matching the sibling
-   api-ca/api-pa deployments and reusing the same wrangler + GitHub Actions CI/CD
-   model. The implemented remote transport is the MCP SDK's
-   `WebStandardStreamableHTTPServerTransport`, configured without sessions and
-   with JSON responses. A fresh server and transport are created for every
-   request. `McpAgent` and Durable Objects remain a possible later upgrade if
-   mutations, per-user state, authentication, or server-initiated streaming
-   require sessions.
+   api-ca/api-pa deployments and reusing the same wrangler + GitHub Actions
+   model. Skybridge generates the Streamable HTTP/Cloudflare entrypoint from
+   `src/server.ts`; the core does not own transport lifecycle code.
 
 5. **Generic, annotated tools.** `list_grant_sources`, `search_opportunities`,
    and `get_opportunity` mirror the SDK's opportunity resource group. Search may
@@ -72,18 +69,19 @@ which require a hosted server — see ADR 002).
    tools preserve plugin data carried in `customFields`, but do not yet
    automatically expose every plugin-specific search filter.
 
-   Federal, California, and Pennsylvania are bounded proofs of this plugin
+   Federal, California, Pennsylvania, and Washington are bounded proofs of this plugin
    path. The MCP carries standalone consumer plugins whose custom-field names
    and value schemas are derived from `common-grants/ts-cg-grants-gov`,
    `agilesix/cg-api-ca/src/adapter/plugin.ts`, and
-   `agilesix/cg-api-pa/src/adapter/plugin.ts`. They intentionally exclude native
+   `agilesix/cg-api-pa/src/adapter/plugin.ts`, and
+   `agilesix/cg-api-wa/src/adapter/plugin.ts`. They intentionally exclude native
    source schemas and bidirectional transforms: those belong to the API
    adapters that convert provider data, while this MCP consumes
    already-normalized CommonGrants responses. Each plugin is attached only
    through its source configuration; tools contain no provider-specific routing
    branches.
 
-   The three local plugins remain self-contained even where their adapters
+   The four local plugins remain self-contained even where their adapters
    define identical ecosystem fields. The MCP does not introduce another
    shared-field contract; each local file can be replaced wholesale by a
    corrected formal package import. Consumer definitions omit static
@@ -118,6 +116,7 @@ which require a hosted server — see ADR 002).
 
 - The same core serves both stdio and HTTP; adding a source is a config
   edit, not a code change.
+- Skybridge can evolve or be removed without rewriting the standard MCP core.
 - SDK client changes are concentrated in `client.ts`; SDK-derived types,
   schemas, and extension imports elsewhere recompile against an upgrade and
   surface incompatible changes at build time.

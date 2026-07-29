@@ -4,6 +4,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { OpportunityBaseSchema } from '@common-grants/sdk/schemas';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { registerTools } from '../../src/core/tools.js';
+import type { CoreToolRegistrar } from '../../src/core/tools.js';
 import type { ICommonGrantsClient, Opportunity, SearchResult } from '../../src/core/types.js';
 
 const OPPORTUNITY_ID = '11111111-1111-4111-8111-111111111111';
@@ -63,7 +64,8 @@ const openConnections: Array<{ client: Client; server: McpServer }> = [];
 
 async function connect(clients: ICommonGrantsClient[]): Promise<Client> {
   const server = new McpServer({ name: 'test-server', version: '1.0.0' });
-  registerTools(server, clients);
+  const registerTool = server.registerTool.bind(server) as unknown as CoreToolRegistrar;
+  registerTools(registerTool, clients);
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'test-client', version: '1.0.0' });
