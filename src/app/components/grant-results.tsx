@@ -5,7 +5,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import {
   buildOpportunityDetailModel,
   eventLabel,
+  eventName,
   money,
+  statusLabel,
   type DetailRow,
 } from '../models/opportunity-display.js';
 import type { PresentShortlistOutput, ShortlistItem } from '../tools/present-shortlist.js';
@@ -84,7 +86,7 @@ function DetailView({
             {item.opportunity.title}
           </h1>
         </div>
-        <span className="status-badge">{item.opportunity.status.value}</span>
+        <span className="status-badge">{statusLabel(item.opportunity.status)}</span>
       </header>
 
       <dl className="detail-facts">
@@ -344,6 +346,9 @@ export default function GrantResults({
             );
           }
 
+          const closeEvent = item.opportunity.keyDates?.closeDate ?? null;
+          const closeValue = eventLabel(closeEvent);
+
           return (
             <li key={itemKey(item)}>
               <button
@@ -365,8 +370,9 @@ export default function GrantResults({
                       {money(item.opportunity.funding?.maxAwardAmount) ?? 'Award not provided'}
                     </span>
                     <span>
-                      {eventLabel(item.opportunity.keyDates?.closeDate ?? null) ??
-                        'Close date not provided'}
+                      {closeValue
+                        ? `${eventName(closeEvent, 'Closing date')}: ${closeValue}`
+                        : 'Closing date not provided'}
                     </span>
                   </span>
                 </span>

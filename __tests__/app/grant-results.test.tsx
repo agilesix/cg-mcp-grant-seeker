@@ -88,6 +88,52 @@ describe('GrantResults', () => {
     expect(html).not.toContain('Who can apply');
     expect(html).toContain('View provider page');
     expect(html).toContain('Back to shortlist');
+    expect(html).toContain('Open for applications');
+  });
+
+  it('labels provider dates in the shortlist and explains missing dates', () => {
+    const datedOutput: PresentShortlistOutput = {
+      ...output,
+      items: [
+        {
+          ...output.items[0]!,
+          opportunity: {
+            ...opportunity('11111111-1111-4111-8111-111111111111', 'Community facilities'),
+            keyDates: {
+              postDate: null,
+              closeDate: { eventType: 'other', name: '' },
+              otherDates: {},
+            },
+          },
+        },
+        {
+          rank: 2,
+          source: { name: 'pa', label: 'Pennsylvania' },
+          id: '33333333-3333-4333-8333-333333333333',
+          status: 'success',
+          opportunity: {
+            ...opportunity('33333333-3333-4333-8333-333333333333', 'Neighborhood assistance'),
+            keyDates: {
+              postDate: null,
+              closeDate: {
+                eventType: 'singleDate',
+                name: 'Letter of intent due',
+                date: '2026-09-15',
+                time: '12:00:00',
+              },
+              otherDates: {},
+            },
+          },
+          providerPageUrl: null,
+          error: null,
+        },
+      ],
+    };
+
+    const html = render({ output: datedOutput });
+
+    expect(html).toContain('Closing date not provided');
+    expect(html).toContain('Letter of intent due: Sep 15, 2026 at 12:00 PM');
   });
 
   it('keeps content and structure identical across visual presets', () => {
