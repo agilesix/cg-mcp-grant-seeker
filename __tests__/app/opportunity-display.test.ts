@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildOpportunityDetailModel,
+  eventLabel,
   safeDescriptionText,
+  statusLabel,
 } from '../../src/app/models/opportunity-display.js';
 import type { WireOpportunity } from '../../src/core/wire.js';
 
@@ -99,5 +101,96 @@ describe('opportunity display model', () => {
         '<p>Project background&nbsp;</p><script>alert("ignore")</script><p>Serve &amp; support.</p>',
       ),
     ).toBe('Project background Serve & support.');
+  });
+
+  it('uses explanatory protocol status labels and preserves custom statuses', () => {
+    expect(statusLabel({ value: 'open' })).toBe('Open for applications');
+    expect(statusLabel({ value: 'forecasted' })).toBe('Forecasted: not yet open');
+    expect(statusLabel({ value: 'closed' })).toBe('Closed to applications');
+    expect(statusLabel({ value: 'custom', customValue: 'Accepting letters of intent' })).toBe(
+      'Accepting letters of intent',
+    );
+    expect(statusLabel({ value: 'custom' })).toBe('Status provided by source');
+  });
+
+  it('uses source event names while keeping date labels date-only', () => {
+    const model = buildOpportunityDetailModel(
+      opportunity({
+        keyDates: {
+          postDate: {
+            eventType: 'singleDate',
+            name: 'Published by agency',
+            date: '2026-07-13',
+            time: '09:30:00',
+            description: 'Public notice published',
+          },
+          closeDate: {
+            eventType: 'dateRange',
+            name: 'Application window',
+            startDate: '2026-08-01',
+            startTime: '00:00:00',
+            endDate: '2026-08-31',
+            endTime: '17:30:00',
+          },
+          otherDates: {},
+        },
+      }),
+      'Example source',
+    );
+
+    expect(model.dates).toEqual([
+      {
+        label: 'Published by agency',
+        value: 'Jul 13, 2026 · Public notice published',
+      },
+      {
+        label: 'Application window',
+        value: 'Aug 1, 2026 to Aug 31, 2026',
+      },
+    ]);
+  });
+
+  it('falls back to neutral date labels and supports descriptive events', () => {
+    const model = buildOpportunityDetailModel(
+      opportunity({
+        keyDates: {
+          postDate: { eventType: 'singleDate', name: '', date: '2026-07-13' },
+          closeDate: {
+            eventType: 'other',
+            name: '',
+            details: 'Applications accepted continuously',
+          },
+          otherDates: {},
+        },
+      }),
+      'Example source',
+    );
+
+    expect(model.dates).toEqual([
+      { label: 'Posted date', value: 'Jul 13, 2026' },
+      { label: 'Closing date', value: 'Applications accepted continuously' },
+    ]);
+    expect(eventLabel({ eventType: 'other', name: 'Application deadline' })).toBeNull();
+    expect(eventLabel(null)).toBeNull();
+  });
+
+  it.each([
+    ['Federal', 'Opportunity Posted', 'Application Deadline'],
+    ['Pennsylvania', 'Open Date', 'Close Date'],
+    ['California', 'Open Date', 'Application Deadline'],
+    ['Washington', 'Published', 'Application closes'],
+  ])('preserves %s provider event names', (source, postName, closeName) => {
+    const model = buildOpportunityDetailModel(
+      opportunity({
+        keyDates: {
+          postDate: { eventType: 'singleDate', name: postName, date: '2026-07-13' },
+          closeDate: { eventType: 'singleDate', name: closeName, date: '2026-08-31' },
+          otherDates: {},
+        },
+      }),
+      source,
+    );
+
+    expect(model.dates.map(({ label }) => label)).toEqual([postName, closeName]);
   });
 });

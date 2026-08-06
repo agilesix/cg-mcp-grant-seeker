@@ -4,7 +4,9 @@ import type { NextFunction, Request, Response } from 'express';
 
 const server = createAppServer(defaultSources(process.env.FEDERAL_API_TOKEN));
 
-server.express.get(['/', '/health'], (_request: Request, response: Response) => {
+const healthPaths = process.env.NODE_ENV === 'production' ? ['/', '/health'] : '/health';
+
+server.express.get(healthPaths, (_request: Request, response: Response) => {
   response.type('text/plain').send('CommonGrants MCP server is running. Connect to /mcp.');
 });
 

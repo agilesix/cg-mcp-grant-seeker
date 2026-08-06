@@ -67,6 +67,12 @@ function dateText(value: unknown): string | null {
   }
 }
 
+type OpportunityEvent = NonNullable<NonNullable<WireOpportunity['keyDates']>['closeDate']>;
+
+export function eventName(event: OpportunityEvent | null | undefined, fallback: string): string {
+  return optionalText(event?.name) ?? fallback;
+}
+
 export function eventLabel(
   event: NonNullable<WireOpportunity['keyDates']>['closeDate'],
 ): string | null {
@@ -75,9 +81,29 @@ export function eventLabel(
   if (event.eventType === 'dateRange') {
     const startDate = dateText(event.startDate);
     const endDate = dateText(event.endDate);
-    return startDate && endDate ? `${startDate} – ${endDate}` : (startDate ?? endDate);
+    return startDate && endDate ? `${startDate} to ${endDate}` : (startDate ?? endDate);
   }
-  return optionalText(event.details) ?? optionalText(event.description) ?? optionalText(event.name);
+  return optionalText(event.details) ?? optionalText(event.description);
+}
+
+function eventDetailValue(event: OpportunityEvent): string | null {
+  const value = eventLabel(event);
+  const description = optionalText(event.description);
+  if (!value) return description;
+  return description && description !== value ? `${value} · ${description}` : value;
+}
+
+export function statusLabel(status: WireOpportunity['status']): string {
+  switch (status.value) {
+    case 'open':
+      return 'Open for applications';
+    case 'forecasted':
+      return 'Forecasted: not yet open';
+    case 'closed':
+      return 'Closed to applications';
+    case 'custom':
+      return optionalText(status.customValue) ?? 'Status provided by source';
+  }
 }
 
 function customObject(opportunity: WireOpportunity, name: string): Record<string, unknown> | null {
@@ -143,8 +169,10 @@ export function buildOpportunityDetailModel(
     .filter(Boolean)
     .join(' – ');
   const totalFunding = money(opportunity.funding?.totalAmountAvailable);
-  const posted = eventLabel(opportunity.keyDates?.postDate ?? null);
-  const close = eventLabel(opportunity.keyDates?.closeDate ?? null);
+  const postEvent = opportunity.keyDates?.postDate ?? null;
+  const closeEvent = opportunity.keyDates?.closeDate ?? null;
+  const posted = eventLabel(postEvent);
+  const close = eventLabel(closeEvent);
   const fundingInstrument =
     customText(opportunity, 'fundingInstrument') ??
     customText(opportunity, 'assistanceListingType');
@@ -155,8 +183,8 @@ export function buildOpportunityDetailModel(
       : totalFunding
         ? { label: 'Total funding', value: totalFunding }
         : null,
-    posted ? { label: 'Posted', value: posted } : null,
-    close ? { label: 'Close date', value: close } : null,
+    posted ? { label: eventName(postEvent, 'Posted date'), value: posted } : null,
+    close ? { label: eventName(closeEvent, 'Closing date'), value: close } : null,
     fundingInstrument ? { label: 'Funding type', value: fundingInstrument } : null,
     { label: 'Source', value: sourceLabel },
   ]);
@@ -197,10 +225,20 @@ export function buildOpportunityDetailModel(
   ]);
 
   const dates = compactRows([
-    posted ? { label: 'Posted', value: posted } : null,
-    close ? { label: 'Close date', value: close } : null,
+    postEvent
+      ? {
+          label: eventName(postEvent, 'Posted date'),
+          value: eventDetailValue(postEvent) ?? posted ?? '',
+        }
+      : null,
+    closeEvent
+      ? {
+          label: eventName(closeEvent, 'Closing date'),
+          value: eventDetailValue(closeEvent) ?? close ?? '',
+        }
+      : null,
     ...Object.entries(opportunity.keyDates?.otherDates ?? {}).map(([key, event]) => {
-      const value = eventLabel(event);
+      const value = eventDetailValue(event);
       return value ? { label: optionalText(event.name) ?? humanize(key), value } : null;
     }),
   ]);
