@@ -6,7 +6,7 @@ import {
   buildOpportunityDetailModel,
   eventLabel,
   eventName,
-  money,
+  fundingSummary,
   statusLabel,
   type DetailRow,
 } from '../models/opportunity-display.js';
@@ -366,9 +366,7 @@ export default function GrantResults({
                   <span className="result-source">{item.source.label}</span>
                   <strong>{item.opportunity.title}</strong>
                   <span className="result-meta">
-                    <span>
-                      {money(item.opportunity.funding?.maxAwardAmount) ?? 'Award not provided'}
-                    </span>
+                    <span>{fundingSummary(item.opportunity)}</span>
                     <span>
                       {closeValue
                         ? `${eventName(closeEvent, 'Closing date')}: ${closeValue}`

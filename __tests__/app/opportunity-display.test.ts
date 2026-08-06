@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildOpportunityDetailModel,
   eventLabel,
+  fundingSummary,
   safeDescriptionText,
   statusLabel,
 } from '../../src/app/models/opportunity-display.js';
@@ -25,6 +26,77 @@ function opportunity(overrides: Partial<WireOpportunity> = {}): WireOpportunity 
 }
 
 describe('opportunity display model', () => {
+  it('labels the funding signal used for shortlist comparison', () => {
+    expect(
+      fundingSummary(
+        opportunity({
+          funding: {
+            minAwardAmount: { amount: '100000', currency: 'USD' },
+            maxAwardAmount: { amount: '500000', currency: 'USD' },
+          },
+        }),
+      ),
+    ).toBe('Award range: $100,000 to $500,000');
+
+    expect(
+      fundingSummary(
+        opportunity({
+          funding: { totalAmountAvailable: { amount: '7000000', currency: 'USD' } },
+        }),
+      ),
+    ).toBe('Total funding: $7,000,000');
+    expect(
+      fundingSummary(
+        opportunity({
+          funding: {
+            minAwardAmount: { amount: '100.1', currency: 'USD' },
+            maxAwardAmount: { amount: '100.4', currency: 'USD' },
+          },
+        }),
+      ),
+    ).toBe('Award range: $100.1 to $100.4');
+    expect(
+      fundingSummary(
+        opportunity({
+          funding: {
+            minAwardAmount: { amount: '100.00', currency: 'USD' },
+            maxAwardAmount: { amount: '100', currency: 'USD' },
+          },
+        }),
+      ),
+    ).toBe('Award amount: $100');
+    expect(
+      fundingSummary(
+        opportunity({
+          funding: {
+            minAwardAmount: { amount: '100.', currency: 'USD' },
+            maxAwardAmount: { amount: '100', currency: 'USD' },
+          },
+        }),
+      ),
+    ).toBe('Award amount: $100');
+    expect(
+      fundingSummary(
+        opportunity({
+          funding: {
+            minAwardAmount: { amount: '100000', currency: 'USD' },
+            maxAwardAmount: { amount: '500000', currency: 'EUR' },
+          },
+        }),
+      ),
+    ).toBe('Minimum award: $100,000; maximum award: €500,000');
+    expect(
+      fundingSummary(
+        opportunity({
+          funding: {
+            maxAwardAmount: { amount: '12345678901234567890', currency: 'USD' },
+          },
+        }),
+      ),
+    ).toBe('Maximum award: $12,345,678,901,234,567,890');
+    expect(fundingSummary(opportunity())).toBe('Funding not provided');
+  });
+
   it('uses protocol fields and shared plugin fields without provider branching', () => {
     const model = buildOpportunityDetailModel(
       opportunity({

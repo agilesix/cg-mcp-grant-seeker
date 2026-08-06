@@ -113,6 +113,10 @@ describe('GrantResults', () => {
           status: 'success',
           opportunity: {
             ...opportunity('33333333-3333-4333-8333-333333333333', 'Neighborhood assistance'),
+            funding: {
+              minAwardAmount: { amount: '100000', currency: 'USD' },
+              maxAwardAmount: { amount: '500000', currency: 'USD' },
+            },
             keyDates: {
               postDate: null,
               closeDate: {
@@ -133,6 +137,7 @@ describe('GrantResults', () => {
     const html = render({ output: datedOutput });
 
     expect(html).toContain('Closing date not provided');
+    expect(html).toContain('Award range: $100,000 to $500,000');
     expect(html).toContain('Letter of intent due: Sep 15, 2026');
     expect(html).not.toContain('12:00 PM');
   });
