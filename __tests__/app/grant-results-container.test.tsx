@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from 'react';
+import { act, StrictMode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShortlistViewState } from '../../src/app/models/view-state.js';
@@ -11,6 +11,8 @@ const host = vi.hoisted(() => ({
   output: null as PresentShortlistOutput | null,
   persisted: null as ShortlistViewState | null,
   openExternal: vi.fn(),
+  displayMode: 'inline' as 'inline' | 'fullscreen',
+  setDisplayMode: vi.fn(),
   visualTheme: 'common-grants' as 'common-grants' | 'host-neutral',
 }));
 
@@ -22,6 +24,7 @@ vi.mock('skybridge/web', async () => {
       maxHeight: 800,
       safeArea: { insets: { top: 0, right: 0, bottom: 0, left: 0 } },
     }),
+    useDisplayMode: () => [host.displayMode, host.setDisplayMode] as const,
     useOpenExternal: () => host.openExternal,
     useToolInfo: () => ({
       isPending: false,
@@ -51,6 +54,16 @@ vi.mock('../../src/app/hosts/skybridge/theme-config.js', () => ({
 }));
 
 import GrantResultsContainer from '../../src/app/hosts/skybridge/views/grant-results.js';
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
 
 function opportunity(id: string): WireOpportunity {
   return {
@@ -102,6 +115,9 @@ describe('GrantResultsContainer', () => {
     host.output = output('11111111-1111-4111-8111-111111111111');
     host.persisted = null;
     host.openExternal.mockReset();
+    host.displayMode = 'inline';
+    host.setDisplayMode.mockReset();
+    host.setDisplayMode.mockResolvedValue({ mode: 'fullscreen' });
     container = document.createElement('div');
     document.documentElement.appendChild(container);
     root = createRoot(container);
@@ -152,4 +168,128 @@ describe('GrantResultsContainer', () => {
       expect(container.querySelectorAll('.result-row')).toHaveLength(5);
     },
   );
+
+  it('requests fullscreen from the host when the user chooses Expand', async () => {
+    await act(async () => root.render(<GrantResultsContainer />));
+
+    const expand = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Expand',
+    );
+    expect(expand).toBeTruthy();
+
+    await act(async () => expand?.click());
+
+    expect(host.setDisplayMode).toHaveBeenCalledWith('fullscreen');
+  });
+
+  it('disables Expand while the host request is pending', async () => {
+    const request = deferred<{ mode: 'fullscreen' }>();
+    host.setDisplayMode.mockReturnValue(request.promise);
+    await act(async () => root.render(<GrantResultsContainer />));
+
+    const expand = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Expand',
+    ) as HTMLButtonElement;
+    act(() => expand.click());
+
+    expect(expand.disabled).toBe(true);
+    expect(expand.textContent).toBe('Expanding…');
+
+    await act(async () => request.resolve({ mode: 'fullscreen' }));
+    expect(expand.disabled).toBe(false);
+  });
+
+  it('announces when the host declines fullscreen without rejecting', async () => {
+    host.setDisplayMode.mockResolvedValue({ mode: 'inline' });
+    await act(async () => root.render(<GrantResultsContainer />));
+
+    const expand = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Expand',
+    );
+    await act(async () => expand?.click());
+
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      'Full screen is not available in this host.',
+    );
+  });
+
+  it('announces a rejected fullscreen request', async () => {
+    host.setDisplayMode.mockRejectedValue(new Error('unsupported'));
+    await act(async () => root.render(<GrantResultsContainer />));
+
+    const expand = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Expand',
+    );
+    await act(async () => expand?.click());
+
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      'Full screen is not available in this host.',
+    );
+  });
+
+  it('leaves fullscreen exit controls to the host', async () => {
+    host.displayMode = 'fullscreen';
+    await act(async () => root.render(<GrantResultsContainer />));
+
+    expect(container.querySelector('.display-mode-control')).toBeNull();
+  });
+
+  it('does not update local state when a display-mode request settles after unmount', async () => {
+    const request = deferred<{ mode: 'inline' }>();
+    host.setDisplayMode.mockReturnValue(request.promise);
+    await act(async () => root.render(<GrantResultsContainer />));
+
+    const expand = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Expand',
+    );
+    act(() => expand?.click());
+    await act(async () => root.unmount());
+    root = createRoot(container);
+
+    await act(async () => request.resolve({ mode: 'inline' }));
+    expect(container.textContent).toBe('');
+  });
+
+  it('settles display-mode state under React Strict Mode', async () => {
+    host.setDisplayMode.mockResolvedValue({ mode: 'inline' });
+    await act(async () =>
+      root.render(
+        <StrictMode>
+          <GrantResultsContainer />
+        </StrictMode>,
+      ),
+    );
+
+    const expand = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Expand',
+    ) as HTMLButtonElement;
+    await act(async () => expand.click());
+
+    expect(expand.disabled).toBe(false);
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      'Full screen is not available in this host.',
+    );
+  });
+
+  it('ignores a stale request result after the host changes display mode', async () => {
+    const request = deferred<{ mode: 'inline' }>();
+    host.setDisplayMode.mockReturnValue(request.promise);
+    await act(async () => root.render(<GrantResultsContainer />));
+
+    const expand = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Expand',
+    );
+    act(() => expand?.click());
+
+    host.displayMode = 'fullscreen';
+    await act(async () => root.render(<GrantResultsContainer />));
+    await act(async () => request.resolve({ mode: 'inline' }));
+    host.displayMode = 'inline';
+    await act(async () => root.render(<GrantResultsContainer />));
+
+    expect(container.querySelector('[role="status"]')).toBeNull();
+    expect(container.querySelector<HTMLButtonElement>('.display-mode-button')?.disabled).toBe(
+      false,
+    );
+  });
 });
