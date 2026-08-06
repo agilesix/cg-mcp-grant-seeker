@@ -65,7 +65,7 @@ export function createPresentShortlistInputSchema(sourceNames: [string, ...strin
           .array(z.string())
           .max(20)
           .optional()
-          .describe('Assistant-reported search terms, in research order'),
+          .describe('Assistant-reported full-text query terms, in research order'),
       })
       .optional(),
   };
@@ -113,6 +113,7 @@ export const presentShortlistDefinition = {
     'Present one final, ranked grant shortlist after completing research.',
     'Call once per completed shortlist revision, not for intermediate searches.',
     'Include one to eight unique source-scoped references worth showing.',
+    'If research context is included, list each distinct full-text query term separately.',
     'The server retrieves and preserves each complete SDK-validated opportunity.',
     'The attached view displays a concise subset without narrowing structuredContent.',
   ].join(' '),

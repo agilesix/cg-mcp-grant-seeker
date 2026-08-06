@@ -76,7 +76,14 @@ describe('GrantResults', () => {
     expect(html.indexOf('Community facilities')).toBeLessThan(html.indexOf('Federal'));
     expect(html).toContain('Washington');
     expect(html).toContain('This opportunity took too long to load from Federal.');
-    expect(html).toContain('Search terms reported by the assistant');
+    expect(html).toContain('How this shortlist was researched');
+    expect(html).not.toContain('3 searches');
+    expect(html).toContain('Search terms the assistant reported using:');
+    expect(html).toContain(
+      'The assistant reported using each item above in a separate search. Different grant ' +
+        'sources may search different parts of an opportunity, so the same words can produce ' +
+        'different results.',
+    );
     expect(html).toContain('<button');
   });
 

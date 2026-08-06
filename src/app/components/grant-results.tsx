@@ -321,13 +321,18 @@ export default function GrantResults({
         </p>
         {output.researchContext.queries.length > 0 && (
           <details className="research-context">
-            <summary>Research context</summary>
-            <p>Search terms reported by the assistant:</p>
+            <summary>How this shortlist was researched</summary>
+            <p>Search terms the assistant reported using:</p>
             <ul>
               {output.researchContext.queries.map((query) => (
                 <li key={query}>{query}</li>
               ))}
             </ul>
+            <p>
+              The assistant reported using each item above in a separate search. Different grant
+              sources may search different parts of an opportunity, so the same words can produce
+              different results.
+            </p>
           </details>
         )}
       </header>
