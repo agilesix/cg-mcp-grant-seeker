@@ -33,20 +33,58 @@ export function money(
   value: { amount: string; currency: string } | null | undefined,
 ): string | null {
   if (!value) return null;
-  const amount = Number(value.amount);
+  const amount = value.amount.trim();
   const currency = value.currency ?? 'USD';
-  if (Number.isFinite(amount)) {
+  if (amount && Number.isFinite(Number(amount))) {
     try {
-      return new Intl.NumberFormat(undefined, {
+      const fractionDigits = amount.split('.')[1]?.replace(/0+$/, '').length ?? 0;
+      const formatter = new Intl.NumberFormat(undefined, {
         style: 'currency',
         currency,
-        maximumFractionDigits: 0,
-      }).format(amount);
+        minimumFractionDigits: 0,
+        maximumFractionDigits: Math.min(fractionDigits, 20),
+      });
+      // ECMA-402 accepts decimal strings without coercing them through a binary
+      // number, but the TypeScript Intl declaration still omits that overload.
+      return (formatter.format as unknown as (decimal: string) => string)(amount);
     } catch {
       return `${value.amount} ${currency}`;
     }
   }
   return `${value.amount} ${currency}`;
+}
+
+function canonicalAmount(value: string): string {
+  const match = /^([+-]?)(\d+)(?:\.(\d*))?$/.exec(value.trim());
+  if (!match) return value.trim();
+  const sign = match[1] ?? '';
+  const whole = match[2] ?? '0';
+  const fraction = match[3] ?? '';
+  const normalizedWhole = whole.replace(/^0+(?=\d)/, '');
+  const normalizedFraction = fraction.replace(/0+$/, '');
+  const normalizedSign = sign === '-' && (normalizedWhole !== '0' || normalizedFraction) ? '-' : '';
+  return `${normalizedSign}${normalizedWhole}${normalizedFraction ? `.${normalizedFraction}` : ''}`;
+}
+
+export function fundingSummary(opportunity: WireOpportunity): string {
+  const minimumValue = opportunity.funding?.minAwardAmount;
+  const maximumValue = opportunity.funding?.maxAwardAmount;
+  const minimum = money(minimumValue);
+  const maximum = money(maximumValue);
+  const total = money(opportunity.funding?.totalAmountAvailable);
+
+  if (minimum && maximum && minimumValue && maximumValue) {
+    if (minimumValue.currency !== maximumValue.currency) {
+      return `Minimum award: ${minimum}; maximum award: ${maximum}`;
+    }
+    return canonicalAmount(minimumValue.amount) === canonicalAmount(maximumValue.amount)
+      ? `Award amount: ${maximum}`
+      : `Award range: ${minimum} to ${maximum}`;
+  }
+  if (maximum) return `Maximum award: ${maximum}`;
+  if (minimum) return `Minimum award: ${minimum}`;
+  if (total) return `Total funding: ${total}`;
+  return 'Funding not provided';
 }
 
 function dateText(value: unknown): string | null {
