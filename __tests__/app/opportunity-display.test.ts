@@ -113,7 +113,7 @@ describe('opportunity display model', () => {
     expect(statusLabel({ value: 'custom' })).toBe('Status provided by source');
   });
 
-  it('uses source event names and displays supplied times', () => {
+  it('uses source event names while keeping date labels date-only', () => {
     const model = buildOpportunityDetailModel(
       opportunity({
         keyDates: {
@@ -141,11 +141,11 @@ describe('opportunity display model', () => {
     expect(model.dates).toEqual([
       {
         label: 'Published by agency',
-        value: 'Jul 13, 2026 at 9:30 AM · Public notice published',
+        value: 'Jul 13, 2026 · Public notice published',
       },
       {
         label: 'Application window',
-        value: 'Aug 1, 2026 at 12:00 AM to Aug 31, 2026 at 5:30 PM',
+        value: 'Aug 1, 2026 to Aug 31, 2026',
       },
     ]);
   });

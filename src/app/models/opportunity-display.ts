@@ -67,25 +67,6 @@ function dateText(value: unknown): string | null {
   }
 }
 
-function timeText(value: unknown): string | null {
-  const text = optionalText(value);
-  if (!text) return null;
-  const match = /^(\d{2}):(\d{2}):(\d{2})(\.\d+)?$/.exec(text);
-  if (!match) return text;
-  const [, hourText, minute, second, fraction] = match;
-  const hour = Number(hourText);
-  const displayHour = hour % 12 || 12;
-  const seconds = second === '00' && !fraction ? '' : `:${second}${fraction ?? ''}`;
-  return `${displayHour}:${minute}${seconds} ${hour < 12 ? 'AM' : 'PM'}`;
-}
-
-function dateAndTime(date: unknown, time: unknown): string | null {
-  const formattedDate = dateText(date);
-  const formattedTime = timeText(time);
-  if (!formattedDate) return formattedTime;
-  return formattedTime ? `${formattedDate} at ${formattedTime}` : formattedDate;
-}
-
 type OpportunityEvent = NonNullable<NonNullable<WireOpportunity['keyDates']>['closeDate']>;
 
 export function eventName(event: OpportunityEvent | null | undefined, fallback: string): string {
@@ -96,10 +77,10 @@ export function eventLabel(
   event: NonNullable<WireOpportunity['keyDates']>['closeDate'],
 ): string | null {
   if (!event) return null;
-  if (event.eventType === 'singleDate') return dateAndTime(event.date, event.time);
+  if (event.eventType === 'singleDate') return dateText(event.date);
   if (event.eventType === 'dateRange') {
-    const startDate = dateAndTime(event.startDate, event.startTime);
-    const endDate = dateAndTime(event.endDate, event.endTime);
+    const startDate = dateText(event.startDate);
+    const endDate = dateText(event.endDate);
     return startDate && endDate ? `${startDate} to ${endDate}` : (startDate ?? endDate);
   }
   return optionalText(event.details) ?? optionalText(event.description) ?? optionalText(event.name);

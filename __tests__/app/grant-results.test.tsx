@@ -133,7 +133,8 @@ describe('GrantResults', () => {
     const html = render({ output: datedOutput });
 
     expect(html).toContain('Closing date not provided');
-    expect(html).toContain('Letter of intent due: Sep 15, 2026 at 12:00 PM');
+    expect(html).toContain('Letter of intent due: Sep 15, 2026');
+    expect(html).not.toContain('12:00 PM');
   });
 
   it('keeps content and structure identical across visual presets', () => {
