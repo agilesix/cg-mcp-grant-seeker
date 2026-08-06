@@ -28,11 +28,15 @@ export interface GrantResultsProps {
   colorScheme: 'light' | 'dark';
   visualTheme: VisualTheme;
   insets: HostInsets;
+  displayMode: 'inline' | 'fullscreen' | null;
+  displayModePending: boolean;
+  displayModeError: string | null;
   onSelect: (key: string) => void;
   onBack: () => void;
   onShowMore: () => void;
   onToggleDescription: (key: string) => void;
   onOpenExternal: (url: string) => void;
+  onToggleDisplayMode: () => void;
 }
 
 export function itemKey(item: Pick<ShortlistItem, 'source' | 'id'>): string {
@@ -49,6 +53,39 @@ function DetailRows({ rows }: { rows: DetailRow[] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+function DisplayModeControl({
+  displayMode,
+  pending,
+  error,
+  onToggle,
+}: {
+  displayMode: GrantResultsProps['displayMode'];
+  pending: boolean;
+  error: string | null;
+  onToggle: () => void;
+}) {
+  if (displayMode !== 'inline') return null;
+
+  return (
+    <div className="display-mode-control">
+      <button
+        className="secondary-button display-mode-button"
+        type="button"
+        disabled={pending}
+        aria-label="Expand to full screen"
+        onClick={onToggle}
+      >
+        {pending ? 'Expanding…' : 'Expand'}
+      </button>
+      {error && (
+        <p className="display-mode-error" role="status">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -254,11 +291,15 @@ export default function GrantResults({
   colorScheme,
   visualTheme,
   insets,
+  displayMode,
+  displayModePending,
+  displayModeError,
   onSelect,
   onBack,
   onShowMore,
   onToggleDescription,
   onOpenExternal,
+  onToggleDisplayMode,
 }: GrantResultsProps) {
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
   const rowRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -295,6 +336,12 @@ export default function GrantResults({
         data-visual-theme={visualTheme}
         style={rootStyle}
       >
+        <DisplayModeControl
+          displayMode={displayMode}
+          pending={displayModePending}
+          error={displayModeError}
+          onToggle={onToggleDisplayMode}
+        />
         <DetailView
           item={selected}
           headingRef={detailHeadingRef}
@@ -312,6 +359,12 @@ export default function GrantResults({
 
   return (
     <main className={`grant-app ${colorScheme}`} data-visual-theme={visualTheme} style={rootStyle}>
+      <DisplayModeControl
+        displayMode={displayMode}
+        pending={displayModePending}
+        error={displayModeError}
+        onToggle={onToggleDisplayMode}
+      />
       <header className="app-header">
         <p className="eyebrow">Grant opportunities</p>
         <h1>Opportunity shortlist</h1>

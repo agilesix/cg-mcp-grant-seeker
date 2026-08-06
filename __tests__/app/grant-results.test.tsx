@@ -59,11 +59,15 @@ function render(overrides: Partial<Parameters<typeof GrantResults>[0]> = {}) {
       colorScheme="light"
       visualTheme="common-grants"
       insets={{ top: 0, right: 0, bottom: 0, left: 0 }}
+      displayMode="inline"
+      displayModePending={false}
+      displayModeError={null}
       onSelect={vi.fn()}
       onBack={vi.fn()}
       onShowMore={vi.fn()}
       onToggleDescription={vi.fn()}
       onOpenExternal={vi.fn()}
+      onToggleDisplayMode={vi.fn()}
       {...overrides}
     />,
   );
@@ -163,5 +167,11 @@ describe('GrantResults', () => {
 
     expect(html).toContain('class="grant-app dark"');
     expect(html).toContain('data-visual-theme="host-neutral"');
+  });
+
+  it('shows Expand inline and leaves fullscreen exit controls to the host', () => {
+    expect(render({ displayMode: 'inline' })).toContain('>Expand</button>');
+    expect(render({ displayMode: 'fullscreen' })).not.toContain('display-mode-control');
+    expect(render({ displayMode: null })).not.toContain('display-mode-control');
   });
 });

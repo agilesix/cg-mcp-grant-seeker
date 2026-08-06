@@ -1,5 +1,11 @@
-import { useEffect } from 'react';
-import { useLayout, useOpenExternal, useToolInfo, useViewState } from 'skybridge/web';
+import { useEffect, useRef, useState } from 'react';
+import {
+  useDisplayMode,
+  useLayout,
+  useOpenExternal,
+  useToolInfo,
+  useViewState,
+} from 'skybridge/web';
 import GrantResults, {
   GrantResultsLoading,
   GrantResultsMessage,
@@ -20,6 +26,11 @@ type JsonObject<T> = T & Record<string, unknown>;
 
 export default function GrantResultsContainer() {
   const { theme, maxHeight, safeArea } = useLayout();
+  const [hostDisplayMode, setHostDisplayMode] = useDisplayMode();
+  const [displayModePending, setDisplayModePending] = useState(false);
+  const [displayModeError, setDisplayModeError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const displayModeRequestRef = useRef(0);
   const openExternal = useOpenExternal();
   const tool = useToolInfo<{
     input: JsonObject<PresentShortlistInput>;
@@ -31,6 +42,8 @@ export default function GrantResultsContainer() {
   );
   const colorScheme = theme === 'dark' ? 'dark' : 'light';
   const insets = safeArea.insets;
+  const displayMode =
+    hostDisplayMode === 'inline' || hostDisplayMode === 'fullscreen' ? hostDisplayMode : null;
 
   const output = tool.isSuccess ? tool.output : null;
   const state = output
@@ -41,6 +54,19 @@ export default function GrantResultsContainer() {
     if (!output || persistedState.presentationId === output.presentationId) return;
     setPersistedState(initialViewState(output.presentationId, initialVisibleCount));
   }, [initialVisibleCount, output, persistedState.presentationId, setPersistedState]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    displayModeRequestRef.current += 1;
+    setDisplayModePending(false);
+    setDisplayModeError(null);
+  }, [displayMode]);
 
   if (tool.isPending) {
     return (
@@ -75,6 +101,9 @@ export default function GrantResultsContainer() {
         colorScheme={colorScheme}
         visualTheme={visualTheme}
         insets={insets}
+        displayMode={displayMode}
+        displayModePending={displayModePending}
+        displayModeError={displayModeError}
         onSelect={(selectedKey) =>
           setPersistedState((current) => ({
             ...stateForPresentation(current, output.presentationId, initialVisibleCount),
@@ -116,6 +145,32 @@ export default function GrantResultsContainer() {
           })
         }
         onOpenExternal={openExternal}
+        onToggleDisplayMode={() => {
+          if (!displayMode || displayModePending) return;
+          const requestId = ++displayModeRequestRef.current;
+          setDisplayModePending(true);
+          setDisplayModeError(null);
+          void setHostDisplayMode('fullscreen')
+            .then(({ mode }) => {
+              if (
+                mountedRef.current &&
+                displayModeRequestRef.current === requestId &&
+                mode !== 'fullscreen'
+              ) {
+                setDisplayModeError('Full screen is not available in this host.');
+              }
+            })
+            .catch(() => {
+              if (mountedRef.current && displayModeRequestRef.current === requestId) {
+                setDisplayModeError('Full screen is not available in this host.');
+              }
+            })
+            .finally(() => {
+              if (mountedRef.current && displayModeRequestRef.current === requestId) {
+                setDisplayModePending(false);
+              }
+            });
+        }}
       />
     </div>
   );

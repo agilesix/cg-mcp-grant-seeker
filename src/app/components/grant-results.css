@@ -25,6 +25,30 @@ button {
   color-scheme: dark;
 }
 
+.display-mode-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 18px 0;
+}
+
+.display-mode-button {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+
+.display-mode-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.display-mode-error {
+  margin: 0;
+  color: var(--grant-color-danger);
+  font-size: 0.85rem;
+}
+
 .app-header,
 .detail-view {
   padding: 18px;
@@ -325,7 +349,8 @@ dd,
 @media (max-width: 520px) {
   .app-header,
   .detail-view,
-  .result-list {
+  .result-list,
+  .display-mode-control {
     padding-right: 13px;
     padding-left: 13px;
   }
