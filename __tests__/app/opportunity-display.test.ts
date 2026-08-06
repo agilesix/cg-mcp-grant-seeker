@@ -170,6 +170,7 @@ describe('opportunity display model', () => {
       { label: 'Posted date', value: 'Jul 13, 2026' },
       { label: 'Closing date', value: 'Applications accepted continuously' },
     ]);
+    expect(eventLabel({ eventType: 'other', name: 'Application deadline' })).toBeNull();
     expect(eventLabel(null)).toBeNull();
   });
 

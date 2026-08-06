@@ -83,7 +83,7 @@ export function eventLabel(
     const endDate = dateText(event.endDate);
     return startDate && endDate ? `${startDate} to ${endDate}` : (startDate ?? endDate);
   }
-  return optionalText(event.details) ?? optionalText(event.description) ?? optionalText(event.name);
+  return optionalText(event.details) ?? optionalText(event.description);
 }
 
 function eventDetailValue(event: OpportunityEvent): string | null {

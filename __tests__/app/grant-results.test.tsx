@@ -101,7 +101,7 @@ describe('GrantResults', () => {
             ...opportunity('11111111-1111-4111-8111-111111111111', 'Community facilities'),
             keyDates: {
               postDate: null,
-              closeDate: { eventType: 'other', name: '' },
+              closeDate: { eventType: 'other', name: 'Application deadline' },
               otherDates: {},
             },
           },
