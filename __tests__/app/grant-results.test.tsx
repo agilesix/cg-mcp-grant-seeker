@@ -122,8 +122,10 @@ describe('GrantResults', () => {
     expect(html).toContain('View source details');
     expect(html).toContain('Confirm current requirements and application instructions');
     expect(html).toContain('Back to shortlist');
+    expect(html.indexOf('Back to shortlist')).toBeLessThan(html.indexOf('Community facilities'));
     expect(html).toContain('Source reports open');
     expect(html).not.toContain('status-badge');
+    expect(html).toContain('>Full screen</button>');
   });
 
   it('labels provider dates in the shortlist and explains missing dates', () => {
@@ -193,9 +195,24 @@ describe('GrantResults', () => {
     expect(html).toContain('data-visual-theme="host-neutral"');
   });
 
-  it('shows Expand inline and leaves fullscreen exit controls to the host', () => {
-    expect(render({ displayMode: 'inline' })).toContain('>Expand</button>');
-    expect(render({ displayMode: 'fullscreen' })).not.toContain('display-mode-control');
+  it('shows full screen only in inline detail and leaves exit controls to the host', () => {
+    expect(render({ displayMode: 'inline' })).not.toContain('display-mode-control');
+    expect(
+      render({
+        selectedKey: 'wa:11111111-1111-4111-8111-111111111111',
+        displayMode: 'inline',
+      }),
+    ).toContain('>Full screen</button>');
+    expect(
+      render({
+        selectedKey: 'wa:11111111-1111-4111-8111-111111111111',
+        displayMode: 'fullscreen',
+      }),
+    ).not.toContain('display-mode-control');
     expect(render({ displayMode: null })).not.toContain('display-mode-control');
+  });
+
+  it('does not add redundant review text to opportunity rows', () => {
+    expect(render()).not.toContain('>Review<');
   });
 });
