@@ -36,7 +36,7 @@ describe('opportunity display model', () => {
           },
         }),
       ),
-    ).toBe('Award range: $100,000 to $500,000');
+    ).toBe('Award range: $100K to $500K');
 
     expect(
       fundingSummary(
@@ -44,7 +44,7 @@ describe('opportunity display model', () => {
           funding: { totalAmountAvailable: { amount: '7000000', currency: 'USD' } },
         }),
       ),
-    ).toBe('Total funding: $7,000,000');
+    ).toBe('Total funding: $7M');
     expect(
       fundingSummary(
         opportunity({
@@ -84,7 +84,7 @@ describe('opportunity display model', () => {
           },
         }),
       ),
-    ).toBe('Minimum award: $100,000; maximum award: €500,000');
+    ).toBe('Minimum award: $100K; maximum award: €500K');
     expect(
       fundingSummary(
         opportunity({
@@ -95,6 +95,19 @@ describe('opportunity display model', () => {
       ),
     ).toBe('Maximum award: $12,345,678,901,234,567,890');
     expect(fundingSummary(opportunity())).toBe('Funding not provided');
+  });
+
+  it('does not collapse distinct award endpoints into the same rounded label', () => {
+    expect(
+      fundingSummary(
+        opportunity({
+          funding: {
+            minAwardAmount: { amount: '1000000', currency: 'USD' },
+            maxAwardAmount: { amount: '1040000', currency: 'USD' },
+          },
+        }),
+      ),
+    ).toBe('Award range: $1,000,000 to $1,040,000');
   });
 
   it('uses protocol fields and shared plugin fields without provider branching', () => {
@@ -144,7 +157,7 @@ describe('opportunity display model', () => {
     expect(model.funding).toEqual(
       expect.arrayContaining([
         { label: 'Funding type', value: 'Loan' },
-        { label: 'Cost sharing', value: 'Not required' },
+        { label: 'Cost sharing', value: 'No match required' },
       ]),
     );
     expect(model.contact).toEqual([{ label: 'Email', value: 'grants@example.gov' }]);
@@ -213,7 +226,7 @@ describe('opportunity display model', () => {
     expect(model.dates).toEqual([
       {
         label: 'Published by agency',
-        value: 'Jul 13, 2026 · Public notice published',
+        value: 'Jul 13, 2026',
       },
       {
         label: 'Application window',
@@ -240,7 +253,7 @@ describe('opportunity display model', () => {
 
     expect(model.dates).toEqual([
       { label: 'Posted date', value: 'Jul 13, 2026' },
-      { label: 'Closing date', value: 'Applications accepted continuously' },
+      { label: 'Close date', value: 'Applications accepted continuously' },
     ]);
     expect(eventLabel({ eventType: 'other', name: 'Application deadline' })).toBeNull();
     expect(eventLabel(null)).toBeNull();
@@ -264,5 +277,51 @@ describe('opportunity display model', () => {
     );
 
     expect(model.dates.map(({ label }) => label)).toEqual([postName, closeName]);
+  });
+
+  it('uses compact funding in summary facts and exact funding in details', () => {
+    const model = buildOpportunityDetailModel(
+      opportunity({
+        funding: {
+          minAwardAmount: { amount: '1', currency: 'USD' },
+          maxAwardAmount: { amount: '5000000000', currency: 'USD' },
+        },
+      }),
+      'Example source',
+    );
+
+    expect(model.facts).toContainEqual({ label: 'Award range', value: '$1 – $5B' });
+    expect(model.funding).toContainEqual({
+      label: 'Award range',
+      value: '$1 – $5,000,000,000',
+    });
+  });
+
+  it('shows cost sharing only when supplied and uses decision-ready language', () => {
+    const withCostSharing = (value: Record<string, unknown>) =>
+      buildOpportunityDetailModel(
+        opportunity({
+          customFields: {
+            costSharing: { name: 'costSharing', fieldType: 'object', value },
+          },
+        }),
+        'Example source',
+      ).funding;
+
+    expect(withCostSharing({ isRequired: true, percentage: 50 })).toContainEqual({
+      label: 'Cost sharing',
+      value: '50% match required',
+    });
+    expect(withCostSharing({ isRequired: true })).toContainEqual({
+      label: 'Cost sharing',
+      value: 'Match required',
+    });
+    expect(withCostSharing({ isRequired: false })).toContainEqual({
+      label: 'Cost sharing',
+      value: 'No match required',
+    });
+    expect(withCostSharing({})).not.toContainEqual(
+      expect.objectContaining({ label: 'Cost sharing' }),
+    );
   });
 });

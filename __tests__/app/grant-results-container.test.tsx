@@ -197,6 +197,49 @@ describe('GrantResultsContainer', () => {
     expect(host.openExternal).toHaveBeenCalledWith('https://example.gov/item-1');
   });
 
+  it('offers description expansion only when the rendered text is truncated', async () => {
+    const scrollHeight = vi
+      .spyOn(HTMLElement.prototype, 'scrollHeight', 'get')
+      .mockReturnValue(160);
+    const clientHeight = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(80);
+
+    await act(async () => root.render(<GrantResultsContainer />));
+    const firstRow = container.querySelector<HTMLButtonElement>('.result-row');
+    await act(async () => firstRow?.click());
+
+    expect(
+      Array.from(container.querySelectorAll('button')).some(
+        (button) => button.textContent === 'Show full description',
+      ),
+    ).toBe(true);
+    const expandDescription = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Show full description',
+    );
+    expect(expandDescription?.getAttribute('aria-controls')).toBe(
+      container.querySelector('[data-testid="opportunity-description"]')?.id,
+    );
+    await act(async () => expandDescription?.click());
+    expect(container.querySelector('.description.expanded')).toBeTruthy();
+    expect(container.textContent).toContain('Show less');
+
+    scrollHeight.mockRestore();
+    clientHeight.mockRestore();
+  });
+
+  it('does not offer description expansion when the rendered text fits', async () => {
+    const scrollHeight = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(80);
+    const clientHeight = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(80);
+
+    await act(async () => root.render(<GrantResultsContainer />));
+    const firstRow = container.querySelector<HTMLButtonElement>('.result-row');
+    await act(async () => firstRow?.click());
+
+    expect(container.textContent).not.toContain('Show full description');
+
+    scrollHeight.mockRestore();
+    clientHeight.mockRestore();
+  });
+
   it('disables Expand while the host request is pending', async () => {
     const request = deferred<{ mode: 'fullscreen' }>();
     host.setDisplayMode.mockReturnValue(request.promise);
