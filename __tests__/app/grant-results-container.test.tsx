@@ -171,11 +171,13 @@ describe('GrantResultsContainer', () => {
     },
   );
 
-  it('requests fullscreen from the host when the user chooses Expand', async () => {
+  it('requests fullscreen from detail view when the user chooses Full screen', async () => {
     await act(async () => root.render(<GrantResultsContainer />));
+    expect(container.querySelector('.display-mode-control')).toBeNull();
+    await act(async () => container.querySelector<HTMLButtonElement>('.result-row')?.click());
 
     const expand = Array.from(container.querySelectorAll('button')).find(
-      (button) => button.textContent === 'Expand',
+      (button) => button.textContent === 'Full screen',
     );
     expect(expand).toBeTruthy();
 
@@ -240,18 +242,19 @@ describe('GrantResultsContainer', () => {
     clientHeight.mockRestore();
   });
 
-  it('disables Expand while the host request is pending', async () => {
+  it('disables Full screen while the host request is pending', async () => {
     const request = deferred<{ mode: 'fullscreen' }>();
     host.setDisplayMode.mockReturnValue(request.promise);
     await act(async () => root.render(<GrantResultsContainer />));
+    await act(async () => container.querySelector<HTMLButtonElement>('.result-row')?.click());
 
     const expand = Array.from(container.querySelectorAll('button')).find(
-      (button) => button.textContent === 'Expand',
+      (button) => button.textContent === 'Full screen',
     ) as HTMLButtonElement;
     act(() => expand.click());
 
     expect(expand.disabled).toBe(true);
-    expect(expand.textContent).toBe('Expanding…');
+    expect(expand.textContent).toBe('Opening…');
 
     await act(async () => request.resolve({ mode: 'fullscreen' }));
     expect(expand.disabled).toBe(false);
@@ -260,9 +263,10 @@ describe('GrantResultsContainer', () => {
   it('announces when the host declines fullscreen without rejecting', async () => {
     host.setDisplayMode.mockResolvedValue({ mode: 'inline' });
     await act(async () => root.render(<GrantResultsContainer />));
+    await act(async () => container.querySelector<HTMLButtonElement>('.result-row')?.click());
 
     const expand = Array.from(container.querySelectorAll('button')).find(
-      (button) => button.textContent === 'Expand',
+      (button) => button.textContent === 'Full screen',
     );
     await act(async () => expand?.click());
 
@@ -274,9 +278,10 @@ describe('GrantResultsContainer', () => {
   it('announces a rejected fullscreen request', async () => {
     host.setDisplayMode.mockRejectedValue(new Error('unsupported'));
     await act(async () => root.render(<GrantResultsContainer />));
+    await act(async () => container.querySelector<HTMLButtonElement>('.result-row')?.click());
 
     const expand = Array.from(container.querySelectorAll('button')).find(
-      (button) => button.textContent === 'Expand',
+      (button) => button.textContent === 'Full screen',
     );
     await act(async () => expand?.click());
 
@@ -288,6 +293,7 @@ describe('GrantResultsContainer', () => {
   it('leaves fullscreen exit controls to the host', async () => {
     host.displayMode = 'fullscreen';
     await act(async () => root.render(<GrantResultsContainer />));
+    await act(async () => container.querySelector<HTMLButtonElement>('.result-row')?.click());
 
     expect(container.querySelector('.display-mode-control')).toBeNull();
   });
@@ -296,9 +302,10 @@ describe('GrantResultsContainer', () => {
     const request = deferred<{ mode: 'inline' }>();
     host.setDisplayMode.mockReturnValue(request.promise);
     await act(async () => root.render(<GrantResultsContainer />));
+    await act(async () => container.querySelector<HTMLButtonElement>('.result-row')?.click());
 
     const expand = Array.from(container.querySelectorAll('button')).find(
-      (button) => button.textContent === 'Expand',
+      (button) => button.textContent === 'Full screen',
     );
     act(() => expand?.click());
     await act(async () => root.unmount());
@@ -317,9 +324,10 @@ describe('GrantResultsContainer', () => {
         </StrictMode>,
       ),
     );
+    await act(async () => container.querySelector<HTMLButtonElement>('.result-row')?.click());
 
     const expand = Array.from(container.querySelectorAll('button')).find(
-      (button) => button.textContent === 'Expand',
+      (button) => button.textContent === 'Full screen',
     ) as HTMLButtonElement;
     await act(async () => expand.click());
 
@@ -333,9 +341,10 @@ describe('GrantResultsContainer', () => {
     const request = deferred<{ mode: 'inline' }>();
     host.setDisplayMode.mockReturnValue(request.promise);
     await act(async () => root.render(<GrantResultsContainer />));
+    await act(async () => container.querySelector<HTMLButtonElement>('.result-row')?.click());
 
     const expand = Array.from(container.querySelectorAll('button')).find(
-      (button) => button.textContent === 'Expand',
+      (button) => button.textContent === 'Full screen',
     );
     act(() => expand?.click());
 

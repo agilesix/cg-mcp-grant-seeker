@@ -75,10 +75,10 @@ function DisplayModeControl({
         className="secondary-button display-mode-button"
         type="button"
         disabled={pending}
-        aria-label="Expand to full screen"
+        aria-label="Open full screen"
         onClick={onToggle}
       >
-        {pending ? 'Expanding…' : 'Expand'}
+        {pending ? 'Opening…' : 'Full screen'}
       </button>
       {error && (
         <p className="display-mode-error" role="status">
@@ -144,14 +144,12 @@ function DetailView({
   item,
   headingRef,
   descriptionExpanded,
-  onBack,
   onToggleDescription,
   onOpenExternal,
 }: {
   item: ShortlistItem & { opportunity: NonNullable<ShortlistItem['opportunity']> };
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   descriptionExpanded: boolean;
-  onBack: () => void;
   onToggleDescription: () => void;
   onOpenExternal: (url: string) => void;
 }) {
@@ -266,9 +264,6 @@ function DetailView({
       )}
 
       <div className="detail-actions">
-        <button className="secondary-button" type="button" onClick={onBack}>
-          Back to shortlist
-        </button>
         {item.providerPageUrl && (
           <div className="source-action">
             <p>Confirm current requirements and application instructions with the source.</p>
@@ -388,20 +383,28 @@ export default function GrantResults({
         data-visual-theme={visualTheme}
         style={rootStyle}
       >
-        <DisplayModeControl
-          displayMode={displayMode}
-          pending={displayModePending}
-          error={displayModeError}
-          onToggle={onToggleDisplayMode}
-        />
+        <nav className="detail-toolbar" aria-label="Opportunity navigation">
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => {
+              restoreFocusKey.current = key;
+              onBack();
+            }}
+          >
+            Back to shortlist
+          </button>
+          <DisplayModeControl
+            displayMode={displayMode}
+            pending={displayModePending}
+            error={displayModeError}
+            onToggle={onToggleDisplayMode}
+          />
+        </nav>
         <DetailView
           item={selected}
           headingRef={detailHeadingRef}
           descriptionExpanded={expandedDescriptionKey === key}
-          onBack={() => {
-            restoreFocusKey.current = key;
-            onBack();
-          }}
           onToggleDescription={() => onToggleDescription(key)}
           onOpenExternal={onOpenExternal}
         />
@@ -411,12 +414,6 @@ export default function GrantResults({
 
   return (
     <main className={`grant-app ${colorScheme}`} data-visual-theme={visualTheme} style={rootStyle}>
-      <DisplayModeControl
-        displayMode={displayMode}
-        pending={displayModePending}
-        error={displayModeError}
-        onToggle={onToggleDisplayMode}
-      />
       <header className="app-header">
         <p className="eyebrow">Grant opportunities</p>
         <h1>Opportunity shortlist</h1>
@@ -500,7 +497,6 @@ export default function GrantResults({
                     </span>
                   </span>
                 </span>
-                <span className="review-label">Review</span>
               </button>
             </li>
           );

@@ -30,7 +30,14 @@ button {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  padding: 10px 18px 0;
+}
+
+.detail-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px 0;
 }
 
 .display-mode-button {
@@ -208,12 +215,6 @@ h2 {
   font-size: 0.9rem;
 }
 
-.review-label {
-  flex: 0 0 auto;
-  color: var(--grant-color-accent);
-  font-weight: var(--grant-font-weight-strong);
-}
-
 .result-error {
   align-items: flex-start;
   background: var(--grant-color-danger-surface);
@@ -377,7 +378,7 @@ dd,
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
   margin-top: 18px;
 }
@@ -402,13 +403,9 @@ dd,
   .app-header,
   .detail-view,
   .result-list,
-  .display-mode-control {
+  .detail-toolbar {
     padding-right: 13px;
     padding-left: 13px;
-  }
-
-  .review-label {
-    display: none;
   }
 
   .detail-header {
