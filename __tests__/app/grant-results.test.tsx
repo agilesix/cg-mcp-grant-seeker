@@ -171,8 +171,8 @@ describe('GrantResults', () => {
 
     const html = render({ output: datedOutput });
 
-    expect(html).toContain('Closing date not provided');
-    expect(html).toContain('Award range: $100,000 to $500,000');
+    expect(html).toContain('Close date not provided');
+    expect(html).toContain('Award range: $100K to $500K');
     expect(html).toContain('Letter of intent due: Sep 15, 2026');
     expect(html).not.toContain('12:00 PM');
   });

@@ -1,7 +1,7 @@
 import '../theme/theme.css';
 import './grant-results.css';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   buildOpportunityDetailModel,
   eventLabel,
@@ -89,6 +89,57 @@ function DisplayModeControl({
   );
 }
 
+function ExpandableDescription({
+  description,
+  expanded,
+  onToggle,
+}: {
+  description: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const descriptionId = useId();
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  useEffect(() => {
+    if (expanded) return;
+    const descriptionElement = descriptionRef.current;
+    if (!descriptionElement) return;
+    const update = () =>
+      setIsTruncated(descriptionElement.scrollHeight > descriptionElement.clientHeight + 1);
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(update);
+    observer.observe(descriptionElement);
+    return () => observer.disconnect();
+  }, [description, expanded]);
+
+  return (
+    <>
+      <p
+        ref={descriptionRef}
+        id={descriptionId}
+        className={`description ${expanded ? 'expanded' : ''}`}
+        data-testid="opportunity-description"
+      >
+        {description}
+      </p>
+      {(isTruncated || expanded) && (
+        <button
+          className="text-button"
+          type="button"
+          aria-controls={descriptionId}
+          aria-expanded={expanded}
+          onClick={onToggle}
+        >
+          {expanded ? 'Show less' : 'Show full description'}
+        </button>
+      )}
+    </>
+  );
+}
+
 function DetailView({
   item,
   headingRef,
@@ -140,17 +191,11 @@ function DetailView({
       {detail.description && (
         <section className="detail-section">
           <h2>About this opportunity</h2>
-          <p className={`description ${descriptionExpanded ? 'expanded' : ''}`}>
-            {detail.description}
-          </p>
-          <button
-            className="text-button"
-            type="button"
-            aria-expanded={descriptionExpanded}
-            onClick={onToggleDescription}
-          >
-            {descriptionExpanded ? 'Show less' : 'Show full description'}
-          </button>
+          <ExpandableDescription
+            description={detail.description}
+            expanded={descriptionExpanded}
+            onToggle={onToggleDescription}
+          />
         </section>
       )}
 
@@ -450,8 +495,8 @@ export default function GrantResults({
                     <span>{fundingSummary(item.opportunity)}</span>
                     <span>
                       {closeValue
-                        ? `${eventName(closeEvent, 'Closing date')}: ${closeValue}`
-                        : 'Closing date not provided'}
+                        ? `${eventName(closeEvent, 'Close date')}: ${closeValue}`
+                        : 'Close date not provided'}
                     </span>
                   </span>
                 </span>

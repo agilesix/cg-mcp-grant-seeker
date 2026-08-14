@@ -54,6 +54,27 @@ export function money(
   return `${value.amount} ${currency}`;
 }
 
+export function compactMoney(
+  value: { amount: string; currency: string } | null | undefined,
+): string | null {
+  if (!value) return null;
+  const numeric = Number(value.amount.trim());
+  if (!Number.isFinite(numeric) || Math.abs(numeric) < 1_000 || Math.abs(numeric) >= 1e15) {
+    return money(value);
+  }
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: value.currency ?? 'USD',
+      notation: 'compact',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 1,
+    }).format(numeric);
+  } catch {
+    return money(value);
+  }
+}
+
 function canonicalAmount(value: string): string {
   const match = /^([+-]?)(\d+)(?:\.(\d*))?$/.exec(value.trim());
   if (!match) return value.trim();
@@ -66,12 +87,28 @@ function canonicalAmount(value: string): string {
   return `${normalizedSign}${normalizedWhole}${normalizedFraction ? `.${normalizedFraction}` : ''}`;
 }
 
+function readableAwardAmounts(
+  minimumValue: { amount: string; currency: string } | null | undefined,
+  maximumValue: { amount: string; currency: string } | null | undefined,
+): { minimum: string | null; maximum: string | null } {
+  const minimum = compactMoney(minimumValue);
+  const maximum = compactMoney(maximumValue);
+  const distinctValuesCollide =
+    minimumValue &&
+    maximumValue &&
+    minimumValue.currency === maximumValue.currency &&
+    canonicalAmount(minimumValue.amount) !== canonicalAmount(maximumValue.amount) &&
+    minimum === maximum;
+  return distinctValuesCollide
+    ? { minimum: money(minimumValue), maximum: money(maximumValue) }
+    : { minimum, maximum };
+}
+
 export function fundingSummary(opportunity: WireOpportunity): string {
   const minimumValue = opportunity.funding?.minAwardAmount;
   const maximumValue = opportunity.funding?.maxAwardAmount;
-  const minimum = money(minimumValue);
-  const maximum = money(maximumValue);
-  const total = money(opportunity.funding?.totalAmountAvailable);
+  const { minimum, maximum } = readableAwardAmounts(minimumValue, maximumValue);
+  const total = compactMoney(opportunity.funding?.totalAmountAvailable);
 
   if (minimum && maximum && minimumValue && maximumValue) {
     if (minimumValue.currency !== maximumValue.currency) {
@@ -208,6 +245,13 @@ export function buildOpportunityDetailModel(
   ]
     .filter(Boolean)
     .join(' – ');
+  const compactAmounts = readableAwardAmounts(
+    opportunity.funding?.minAwardAmount,
+    opportunity.funding?.maxAwardAmount,
+  );
+  const compactAwardRange = [compactAmounts.minimum, compactAmounts.maximum]
+    .filter(Boolean)
+    .join(' – ');
   const totalFunding = money(opportunity.funding?.totalAmountAvailable);
   const postEvent = opportunity.keyDates?.postDate ?? null;
   const closeEvent = opportunity.keyDates?.closeDate ?? null;
@@ -218,13 +262,13 @@ export function buildOpportunityDetailModel(
     customText(opportunity, 'assistanceListingType');
 
   const facts = compactRows([
-    awardRange
-      ? { label: 'Award range', value: awardRange }
+    compactAwardRange
+      ? { label: 'Award range', value: compactAwardRange }
       : totalFunding
         ? { label: 'Total funding', value: totalFunding }
         : null,
     posted ? { label: eventName(postEvent, 'Posted date'), value: posted } : null,
-    close ? { label: eventName(closeEvent, 'Closing date'), value: close } : null,
+    close ? { label: eventName(closeEvent, 'Close date'), value: close } : null,
     fundingInstrument ? { label: 'Funding type', value: fundingInstrument } : null,
     { label: 'Source', value: sourceLabel },
   ]);
@@ -251,8 +295,10 @@ export function buildOpportunityDetailModel(
     costSharingRequired === null
       ? null
       : costSharingRequired
-        ? `Required${costSharingPercentage === null ? '' : ` · ${costSharingPercentage}%`}`
-        : 'Not required';
+        ? costSharingPercentage === null
+          ? 'Match required'
+          : `${costSharingPercentage}% match required`
+        : 'No match required';
 
   const funding = compactRows([
     totalFunding ? { label: 'Total available', value: totalFunding } : null,
@@ -268,13 +314,13 @@ export function buildOpportunityDetailModel(
     postEvent
       ? {
           label: eventName(postEvent, 'Posted date'),
-          value: eventDetailValue(postEvent) ?? posted ?? '',
+          value: posted ?? '',
         }
       : null,
     closeEvent
       ? {
-          label: eventName(closeEvent, 'Closing date'),
-          value: eventDetailValue(closeEvent) ?? close ?? '',
+          label: eventName(closeEvent, 'Close date'),
+          value: close ?? '',
         }
       : null,
     ...Object.entries(opportunity.keyDates?.otherDates ?? {}).map(([key, event]) => {
