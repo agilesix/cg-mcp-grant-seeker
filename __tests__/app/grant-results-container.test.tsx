@@ -100,6 +100,8 @@ function output(presentationId: string): PresentShortlistOutput {
       provenance: 'assistant_supplied',
       searchCount: 2,
       queries: ['housing', 'youth'],
+      filters: [],
+      sort: null,
     },
   };
 }
