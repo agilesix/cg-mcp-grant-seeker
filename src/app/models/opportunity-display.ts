@@ -134,13 +134,15 @@ function eventDetailValue(event: OpportunityEvent): string | null {
 export function statusLabel(status: WireOpportunity['status']): string {
   switch (status.value) {
     case 'open':
-      return 'Open for applications';
+      return 'Source reports open';
     case 'forecasted':
-      return 'Forecasted: not yet open';
+      return 'Source reports forecasted';
     case 'closed':
-      return 'Closed to applications';
+      return 'Source reports closed';
     case 'custom':
-      return optionalText(status.customValue) ?? 'Status provided by source';
+      return optionalText(status.customValue)
+        ? `Source reports: ${optionalText(status.customValue)}`
+        : 'Status provided by source';
   }
 }
 

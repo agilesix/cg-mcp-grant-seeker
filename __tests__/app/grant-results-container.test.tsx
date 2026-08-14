@@ -182,6 +182,19 @@ describe('GrantResultsContainer', () => {
     expect(host.setDisplayMode).toHaveBeenCalledWith('fullscreen');
   });
 
+  it('opens the exact source details URL from an opportunity', async () => {
+    await act(async () => root.render(<GrantResultsContainer />));
+
+    const firstRow = container.querySelector<HTMLButtonElement>('.result-row');
+    await act(async () => firstRow?.click());
+    const sourceDetails = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'View source details',
+    );
+    await act(async () => sourceDetails?.click());
+
+    expect(host.openExternal).toHaveBeenCalledWith('https://example.gov/item-1');
+  });
+
   it('disables Expand while the host request is pending', async () => {
     const request = deferred<{ mode: 'fullscreen' }>();
     host.setDisplayMode.mockReturnValue(request.promise);
