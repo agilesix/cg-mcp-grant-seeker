@@ -175,12 +175,12 @@ describe('opportunity display model', () => {
     ).toBe('Project background Serve & support.');
   });
 
-  it('uses explanatory protocol status labels and preserves custom statuses', () => {
-    expect(statusLabel({ value: 'open' })).toBe('Open for applications');
-    expect(statusLabel({ value: 'forecasted' })).toBe('Forecasted: not yet open');
-    expect(statusLabel({ value: 'closed' })).toBe('Closed to applications');
+  it('attributes protocol status labels to the source and preserves custom statuses', () => {
+    expect(statusLabel({ value: 'open' })).toBe('Source reports open');
+    expect(statusLabel({ value: 'forecasted' })).toBe('Source reports forecasted');
+    expect(statusLabel({ value: 'closed' })).toBe('Source reports closed');
     expect(statusLabel({ value: 'custom', customValue: 'Accepting letters of intent' })).toBe(
-      'Accepting letters of intent',
+      'Source reports: Accepting letters of intent',
     );
     expect(statusLabel({ value: 'custom' })).toBe('Status provided by source');
   });

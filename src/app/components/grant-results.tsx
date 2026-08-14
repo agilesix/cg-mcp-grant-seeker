@@ -122,8 +122,10 @@ function DetailView({
           <h1 ref={headingRef} tabIndex={-1}>
             {item.opportunity.title}
           </h1>
+          <p className={`status-text status-${item.opportunity.status.value}`}>
+            {statusLabel(item.opportunity.status)}
+          </p>
         </div>
-        <span className="status-badge">{statusLabel(item.opportunity.status)}</span>
       </header>
 
       <dl className="detail-facts">
@@ -223,13 +225,16 @@ function DetailView({
           Back to shortlist
         </button>
         {item.providerPageUrl && (
-          <button
-            className="primary-button"
-            type="button"
-            onClick={() => onOpenExternal(item.providerPageUrl!)}
-          >
-            View provider page
-          </button>
+          <div className="source-action">
+            <p>Confirm current requirements and application instructions with the source.</p>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => onOpenExternal(item.providerPageUrl!)}
+            >
+              View source details
+            </button>
+          </div>
         )}
       </div>
     </section>

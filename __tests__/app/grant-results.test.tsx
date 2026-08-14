@@ -97,9 +97,11 @@ describe('GrantResults', () => {
     expect(html).toContain('Grant opportunity details');
     expect(html).toContain('The source did not provide additional funding');
     expect(html).not.toContain('Who can apply');
-    expect(html).toContain('View provider page');
+    expect(html).toContain('View source details');
+    expect(html).toContain('Confirm current requirements and application instructions');
     expect(html).toContain('Back to shortlist');
-    expect(html).toContain('Open for applications');
+    expect(html).toContain('Source reports open');
+    expect(html).not.toContain('status-badge');
   });
 
   it('labels provider dates in the shortlist and explains missing dates', () => {
