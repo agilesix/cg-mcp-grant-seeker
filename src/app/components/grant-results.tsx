@@ -316,6 +316,8 @@ export default function GrantResults({
   const selected = successful.find((item) => itemKey(item) === selectedKey);
   const visible = output.items.slice(0, visibleCount);
   const hiddenCount = Math.max(0, output.items.length - visible.length);
+  const reportedFilters = output.researchContext.filters ?? [];
+  const reportedSort = output.researchContext.sort ?? null;
   const rootStyle = {
     paddingTop: insets.top,
     paddingRight: insets.right,
@@ -377,6 +379,22 @@ export default function GrantResults({
           {successful.length} {successful.length === 1 ? 'opportunity' : 'opportunities'} ready for
           review
         </p>
+        {(reportedFilters.length > 0 || reportedSort) && (
+          <div className="selection-context" aria-label="Shortlist selection">
+            {reportedFilters.length > 0 && (
+              <p>
+                <strong>Filtered by</strong>
+                <span>{reportedFilters.join(' · ')}</span>
+              </p>
+            )}
+            {reportedSort && (
+              <p>
+                <strong>Sorted by</strong>
+                <span>{reportedSort}</span>
+              </p>
+            )}
+          </div>
+        )}
         {output.researchContext.queries.length > 0 && (
           <details className="research-context">
             <summary>How this shortlist was researched</summary>

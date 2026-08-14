@@ -93,6 +93,31 @@ h2 {
   color: var(--grant-color-muted);
 }
 
+.selection-context {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--grant-radius-small);
+  background: var(--grant-color-surface-subtle);
+  font-size: 0.9rem;
+}
+
+.selection-context p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0;
+}
+
+.selection-context strong {
+  color: var(--grant-color-text);
+}
+
+.selection-context span {
+  color: var(--grant-color-muted);
+}
+
 .research-context {
   margin-top: 12px;
   color: var(--grant-color-muted);

@@ -46,6 +46,8 @@ const output: PresentShortlistOutput = {
     provenance: 'assistant_supplied',
     searchCount: 3,
     queries: ['community development'],
+    filters: ['Open opportunities', 'Posted in the last 7 days'],
+    sort: 'Nearest close date first',
   },
 };
 
@@ -81,6 +83,10 @@ describe('GrantResults', () => {
     expect(html).toContain('Washington');
     expect(html).toContain('This opportunity took too long to load from Federal.');
     expect(html).toContain('How this shortlist was researched');
+    expect(html).toContain('Filtered by');
+    expect(html).toContain('Open opportunities · Posted in the last 7 days');
+    expect(html).toContain('Sorted by');
+    expect(html).toContain('Nearest close date first');
     expect(html).not.toContain('3 searches');
     expect(html).toContain('Search terms the assistant reported using:');
     expect(html).toContain(
@@ -89,6 +95,22 @@ describe('GrantResults', () => {
         'different results.',
     );
     expect(html).toContain('<button');
+  });
+
+  it('renders previously generated results without filter or sort fields', () => {
+    const legacyOutput = {
+      ...output,
+      researchContext: {
+        provenance: 'assistant_supplied' as const,
+        searchCount: 3,
+        queries: ['community development'],
+      },
+    } as PresentShortlistOutput;
+
+    const html = render({ output: legacyOutput });
+
+    expect(html).toContain('Community facilities');
+    expect(html).not.toContain('Shortlist selection');
   });
 
   it('renders a responsive sparse detail without empty sections', () => {

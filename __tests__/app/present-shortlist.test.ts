@@ -67,6 +67,8 @@ describe('presentOpportunityShortlist', () => {
         researchContext: {
           searchCount: 4,
           queries: [' "housing" ', 'housing', 'youth services'],
+          filters: [' Open opportunities ', 'Posted in the last 7 days', 'Open opportunities'],
+          sort: ' Nearest close date first ',
         },
       },
       [federal, california],
@@ -87,6 +89,8 @@ describe('presentOpportunityShortlist', () => {
       provenance: 'assistant_supplied',
       searchCount: 4,
       queries: ['housing', 'youth services'],
+      filters: ['Open opportunities', 'Posted in the last 7 days'],
+      sort: 'Nearest close date first',
     });
   });
 

@@ -31,6 +31,8 @@ const researchContextSchema = z.object({
   provenance: z.literal('assistant_supplied'),
   searchCount: z.number().int().nonnegative().nullable(),
   queries: z.array(z.string()),
+  filters: z.array(z.string()),
+  sort: z.string().nullable(),
 });
 
 export const PRESENT_SHORTLIST_TOOL_NAME = 'present_opportunity_shortlist';
@@ -52,7 +54,9 @@ export function createPresentShortlistInputSchema(sourceNames: [string, ...strin
       )
       .min(1)
       .max(8)
-      .describe('Final unique candidates, ordered strongest first'),
+      .describe(
+        'Final unique candidates in display order. When researchContext.sort is provided, this order must match it.',
+      ),
     researchContext: z
       .object({
         searchCount: z
@@ -62,10 +66,24 @@ export function createPresentShortlistInputSchema(sourceNames: [string, ...strin
           .optional()
           .describe('Assistant-reported number of research searches'),
         queries: z
-          .array(z.string())
+          .array(z.string().max(200))
           .max(20)
           .optional()
           .describe('Assistant-reported full-text query terms, in research order'),
+        filters: z
+          .array(z.string().max(160))
+          .max(12)
+          .optional()
+          .describe(
+            'Plain-language criteria actually applied to the final shortlist, such as "Open opportunities" or "Posted in the last 7 days"',
+          ),
+        sort: z
+          .string()
+          .max(160)
+          .optional()
+          .describe(
+            'Plain-language ordering actually applied to the final shortlist, such as "Nearest close date first"',
+          ),
       })
       .optional(),
   };
@@ -104,6 +122,8 @@ export interface PresentShortlistOutput {
     provenance: 'assistant_supplied';
     searchCount: number | null;
     queries: string[];
+    filters: string[];
+    sort: string | null;
   };
 }
 
@@ -112,8 +132,9 @@ export const presentShortlistDefinition = {
   description: [
     'Present one final, ranked grant shortlist after completing research.',
     'Call once per completed shortlist revision, not for intermediate searches.',
-    'Include one to eight unique source-scoped references worth showing.',
+    'Include one to eight unique source-scoped references worth showing, in final display order.',
     'If research context is included, list each distinct full-text query term separately.',
+    'Also report any filters and ordering actually applied to the final shortlist so the view can explain the selection.',
     'The server retrieves and preserves each complete SDK-validated opportunity.',
     'The attached view displays a concise subset without narrowing structuredContent.',
   ].join(' '),
@@ -130,6 +151,16 @@ function normalizedQueries(queries: string[] | undefined): string[] {
     )
     .filter(Boolean);
   return [...new Set(normalized ?? [])].slice(0, 20);
+}
+
+function normalizedLabels(values: string[] | undefined, limit: number): string[] {
+  const normalized = values?.map((value) => value.trim()).filter(Boolean);
+  return [...new Set(normalized ?? [])].slice(0, limit);
+}
+
+function normalizedSort(sort: string | undefined): string | null {
+  const normalized = sort?.trim();
+  return normalized || null;
 }
 
 function sourceValue(client: ICommonGrantsClient): Source {
@@ -299,6 +330,8 @@ export async function presentOpportunityShortlist(
       provenance: 'assistant_supplied',
       searchCount: input.researchContext?.searchCount ?? null,
       queries: normalizedQueries(input.researchContext?.queries),
+      filters: normalizedLabels(input.researchContext?.filters, 12),
+      sort: normalizedSort(input.researchContext?.sort),
     },
   };
 }
