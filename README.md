@@ -27,10 +27,13 @@ source you register.
 | `get_opportunity`      | Fetches the complete SDK-validated opportunity from a named source    |
 
 The hosted MCP App also exposes `present_opportunity_shortlist`. An assistant
-uses the three headless tools for iterative research, then calls the
-presentation tool once per completed shortlist revision. That produces one
+uses the three headless tools for iterative research, then automatically calls
+the presentation tool once per completed shortlist revision without requiring
+the user to know about or request the shortlist. The host may still ask the
+user for permission before running the tool. A successful call produces one
 stable, globally ranked review surface instead of attaching transient UI to
-every search. The stdio server remains headless.
+every search; a denied or failed call falls back to a concise plain-text
+shortlist. The stdio server remains headless.
 
 All tools are read-only and carry the MCP annotations (`readOnlyHint`,
 `openWorldHint`) the Claude and OpenAI marketplaces require.

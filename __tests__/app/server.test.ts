@@ -3,7 +3,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { OpportunityBaseSchema } from '@common-grants/sdk/schemas';
 import type { Plugin } from '@common-grants/sdk/extensions';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createAppServer } from '../../src/app/hosts/skybridge/server.js';
+import { APP_SERVER_INSTRUCTIONS, createAppServer } from '../../src/app/hosts/skybridge/server.js';
 import { defaultSources } from '../../src/config/defaults.js';
 import { createServer } from '../../src/core/server.js';
 import type { Opportunity, SearchResult, SourceConfig } from '../../src/core/types.js';
@@ -34,6 +34,16 @@ afterEach(async () => {
 });
 
 describe('Skybridge app boundary', () => {
+  it('instructs clients to present completed grant research automatically', async () => {
+    const client = await connect(createAppServer(defaultSources()));
+
+    expect(client.getInstructions()).toBe(APP_SERVER_INSTRUCTIONS);
+    expect(client.getInstructions()).toContain('automatically call present_opportunity_shortlist');
+    expect(client.getInstructions()).toContain('Do not wait for the user to request the shortlist');
+    expect(client.getInstructions()).toContain('permission');
+    expect(client.getInstructions()).toContain('plain-text shortlist instead');
+  });
+
   it('exposes semantically equivalent core tool contracts', async () => {
     const sources = defaultSources();
     const coreClient = await connect(createServer(sources));
@@ -210,6 +220,12 @@ describe('Skybridge app boundary', () => {
       ({ name }) => name === 'present_opportunity_shortlist',
     );
     expect(presentationTool).toBeDefined();
+    expect(presentationTool?.description).toContain('call this tool automatically');
+    expect(presentationTool?.description).toContain(
+      'Do not wait for the user to request the shortlist',
+    );
+    expect(presentationTool?.description).toContain('permission');
+    expect(presentationTool?.description).toContain('plain-text shortlist instead');
     expect(JSON.stringify(presentationTool?.inputSchema)).toContain('"minItems":1');
     expect(JSON.stringify(presentationTool?.inputSchema)).toContain('"maxItems":8');
     expect(JSON.stringify(presentationTool?.outputSchema)).toContain('"presentationId"');

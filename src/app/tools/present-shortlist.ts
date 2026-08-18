@@ -130,8 +130,12 @@ export interface PresentShortlistOutput {
 export const presentShortlistDefinition = {
   title: 'Present grant opportunity shortlist',
   description: [
-    'Present one final, ranked grant shortlist after completing research.',
+    'After completed grant research produces one or more recommended opportunities, call this tool automatically to present the final ranked shortlist.',
+    'Do not wait for the user to request the shortlist or offer it as a separate optional step.',
+    'The host may ask the user for permission; that approval flow is sufficient and should not prevent the call.',
     'Call once per completed shortlist revision, not for intermediate searches.',
+    'If this call is denied or fails, provide a concise plain-text shortlist instead.',
+    'After a successful call, do not duplicate the full shortlist in prose.',
     'Include one to eight unique source-scoped references worth showing, in final display order.',
     'If research context is included, list each distinct full-text query term separately.',
     'Also report any filters and ordering actually applied to the final shortlist so the view can explain the selection.',
