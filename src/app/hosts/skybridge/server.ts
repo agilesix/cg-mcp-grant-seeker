@@ -7,6 +7,15 @@ import type { SourceConfig } from '../../../core/types.js';
 import type { z } from 'zod3';
 import { registerSkybridgeAppTools } from './register-app-tools.js';
 
+export const APP_SERVER_INSTRUCTIONS = [
+  'Use the grant discovery tools to research and evaluate opportunities.',
+  'When completed research produces one or more recommended opportunities, automatically call present_opportunity_shortlist with the final ranked candidates.',
+  'Do not wait for the user to request the shortlist or offer it as a separate optional step.',
+  'The host may ask the user for permission to run the presentation tool; that approval flow is sufficient and should not prevent the call.',
+  'Call the presentation tool once per completed shortlist revision and do not duplicate a successfully presented shortlist in full prose.',
+  'If the presentation tool is denied or fails, provide a concise plain-text shortlist instead.',
+].join(' ');
+
 /**
  * Adapts Skybridge's definition-object signature to the minimal registration
  * capability required by the shared tools.
@@ -37,7 +46,9 @@ function coreRegistrationAdapter(server: SkybridgeMcpServer): CoreToolRegistrar 
  * App-only tools and views are registered here in later layers.
  */
 export function createAppServer(sources: SourceConfig[]): SkybridgeMcpServer {
-  const server = new SkybridgeMcpServer(SERVER_INFO, {});
+  const server = new SkybridgeMcpServer(SERVER_INFO, {
+    instructions: APP_SERVER_INSTRUCTIONS,
+  });
   const clients = createClients(sources);
   registerTools(coreRegistrationAdapter(server), clients);
   registerSkybridgeAppTools(server, clients);
