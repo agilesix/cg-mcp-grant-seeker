@@ -14,6 +14,7 @@ const expectedTools = [
   'get_opportunity',
   'present_opportunity_shortlist',
 ];
+const expectedSources = ['federal', 'pa', 'ca', 'wa', 'md'];
 let lastError;
 
 for (let attempt = 1; attempt <= 5; attempt += 1) {
@@ -31,7 +32,7 @@ for (let attempt = 1; attempt <= 5; attempt += 1) {
     }
 
     const references = [];
-    for (const source of ['federal', 'pa', 'ca', 'wa']) {
+    for (const source of expectedSources) {
       const result = await client.callTool({
         name: 'search_opportunities',
         arguments: { source, limit: 1 },
@@ -54,7 +55,10 @@ for (let attempt = 1; attempt <= 5; attempt += 1) {
       name: 'present_opportunity_shortlist',
       arguments: {
         opportunities: references,
-        researchContext: { searchCount: 4, queries: ['one result per configured source'] },
+        researchContext: {
+          searchCount: expectedSources.length,
+          queries: ['one result per configured source'],
+        },
       },
     });
     const presented = presentation.structuredContent;
@@ -71,7 +75,7 @@ for (let attempt = 1; attempt <= 5; attempt += 1) {
     }
 
     console.log(
-      `Preview smoke passed: ${expectedTools.length} tools; all four providers searched and presented.`,
+      `Preview smoke passed: ${expectedTools.length} tools; all ${expectedSources.length} providers searched and presented.`,
     );
     await client.close();
     process.exit(0);
