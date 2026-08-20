@@ -20,7 +20,7 @@ pnpm install
 ## Running the server locally (stdio)
 
 ```bash
-# Optional: a federal key enables the federal source (PA, CA, and WA are public).
+# Optional: a federal key enables the federal source (PA, CA, WA, and MD are public).
 export FEDERAL_API_TOKEN="your-simpler-grants-key"
 
 pnpm run dev:stdio     # tsx watch src/stdio.ts, hot-reloads on change
@@ -63,11 +63,11 @@ restart Claude Desktop:
 ```
 
 Ask Claude: _"find workforce development grants"_ — it fans out across federal,
-PA, CA, and WA and returns labeled results in one response.
+PA, CA, WA, and MD and returns labeled results in one response.
 
 ## Configuration
 
-By default the server registers four sources (federal, PA, CA, WA). To add your
+By default the server registers five sources (federal, PA, CA, WA, MD). To add your
 own sources or supply your own credentials, drop a `commongrants-mcp.config.ts`
 in the working directory (or point `CG_MCP_CONFIG` at one). See
 [`examples/commongrants-mcp.config.ts`](examples/commongrants-mcp.config.ts).

@@ -86,6 +86,7 @@ describe('Skybridge app boundary', () => {
         { name: 'pa', label: 'Pennsylvania' },
         { name: 'ca', label: 'California' },
         { name: 'wa', label: 'Washington' },
+        { name: 'md', label: 'Maryland Community Compass' },
       ],
     });
   });

@@ -6,14 +6,15 @@ APIs from a single set of tools. Ask an MCP client (Claude, ChatGPT, the MCP
 Inspector, …) to _"find workforce development grants"_ and it fans out across
 every registered source and returns combined, labeled results.
 
-Ships with four sources out of the box:
+Ships with five sources out of the box:
 
-| Source                           | URL                              | Auth                          |
-| -------------------------------- | -------------------------------- | ----------------------------- |
-| **federal** — Simpler.Grants.gov | `https://api.simpler.grants.gov` | API key (`FEDERAL_API_TOKEN`) |
-| **pa** — Pennsylvania            | `https://pa.api.cg.a6lab.ai`     | none                          |
-| **ca** — California              | `https://ca.api.cg.a6lab.ai`     | none                          |
-| **wa** — Washington FundHub      | `https://wa.api.cg.a6lab.ai`     | none                          |
+| Source                              | URL                                                    | Auth                          |
+| ----------------------------------- | ------------------------------------------------------ | ----------------------------- |
+| **federal** — Simpler.Grants.gov    | `https://api.simpler.grants.gov`                       | API key (`FEDERAL_API_TOKEN`) |
+| **pa** — Pennsylvania               | `https://pa.api.cg.a6lab.ai`                           | none                          |
+| **ca** — California                 | `https://ca.api.cg.a6lab.ai`                           | none                          |
+| **wa** — Washington FundHub         | `https://wa.api.cg.a6lab.ai`                           | none                          |
+| **md** — Maryland Community Compass | `https://md-commongrants-api.brian-derfer.workers.dev` | none                          |
 
 Because they all speak CommonGrants, the same tools work against any additional
 source you register.
@@ -44,7 +45,7 @@ All tools are read-only and carry the MCP annotations (`readOnlyHint`,
 corepack enable
 pnpm install
 
-export FEDERAL_API_TOKEN="your-simpler-grants-key"   # optional; PA + CA + WA are public
+export FEDERAL_API_TOKEN="your-simpler-grants-key"   # optional; PA + CA + WA + MD are public
 pnpm run start:stdio
 ```
 
@@ -54,7 +55,7 @@ outside this repo for zero-setup demos.
 
 ## Configuration
 
-The default registry (federal/pa/ca/wa) is defined in
+The default registry (federal/pa/ca/wa/md) is defined in
 [`src/config/defaults.ts`](src/config/defaults.ts). To add your own sources or
 supply your own credentials, create a `commongrants-mcp.config.ts` in your
 working directory (or point `CG_MCP_CONFIG` at one):
@@ -82,9 +83,9 @@ Each source may optionally provide an SDK `Plugin`. When present, the server
 constructs that source's client with `plugin.getClient()` so the plugin's
 compiled opportunity schema is used while parsing responses.
 
-Federal, California, Pennsylvania, and Washington use small, standalone consumer plugins
+Federal, California, Pennsylvania, Washington, and Maryland use small, standalone consumer plugins
 derived from their existing adapter custom-field contracts. The MCP does not
-copy provider-native transforms because all four APIs already return
+copy provider-native transforms because all five APIs already return
 CommonGrants opportunities. Each local plugin can later be replaced wholesale
 by an import from a corrected published provider package. User-configured
 sources continue to use the base SDK client unless their configuration supplies
