@@ -172,7 +172,7 @@ pnpm exec wrangler versions deploy       # promote the version to production
 ```
 
 > Set the federal key on the deployed Worker with
-> `pnpm exec wrangler secret put FEDERAL_API_TOKEN`. PA and CA need no secret.
+> `pnpm exec wrangler secret put FEDERAL_API_TOKEN`. PA, CA, WA, and MD need no secret.
 
 ### Production deploy
 

@@ -112,7 +112,7 @@ eight-item shortlist cap. This limitation is localized in the retrieval helper
 and can be removed when the SDK supports cancellation.
 
 The tool never silently truncates opportunity fields. Validation includes a
-representative eight-item payload across all four providers and records
+representative eight-item payload across the built-in providers and records
 serialized size and elapsed time. The prototype uses 750 KB as a soft
 structured-result budget and 16 seconds as a worst-case retrieval budget. If
 representative full results exceed the payload budget, reduce the documented
