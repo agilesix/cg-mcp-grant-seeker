@@ -3,6 +3,7 @@ import { definePlugin } from '@common-grants/sdk/extensions';
 import { loadConfig, serverConfigSchema } from '../../src/config/index.js';
 import { CaliforniaPlugin } from '../../src/plugins/california.js';
 import { FederalPlugin } from '../../src/plugins/federal.js';
+import { MarylandPlugin } from '../../src/plugins/maryland.js';
 import { PennsylvaniaPlugin } from '../../src/plugins/pennsylvania.js';
 import { WashingtonPlugin } from '../../src/plugins/washington.js';
 
@@ -89,9 +90,9 @@ describe('serverConfigSchema', () => {
 });
 
 describe('loadConfig defaults', () => {
-  it('falls back to the four built-in sources when no config file exists', async () => {
+  it('falls back to the five built-in sources when no config file exists', async () => {
     const config = await loadConfig({ env: {}, cwd: '/nonexistent-dir-xyz' });
-    expect(config.sources.map((s) => s.name)).toEqual(['federal', 'pa', 'ca', 'wa']);
+    expect(config.sources.map((s) => s.name)).toEqual(['federal', 'pa', 'ca', 'wa', 'md']);
   });
 
   it('threads FEDERAL_API_TOKEN into the federal source auth', async () => {
@@ -117,6 +118,7 @@ describe('loadConfig defaults', () => {
     expect(byName.get('pa')?.plugin).toBe(PennsylvaniaPlugin);
     expect(byName.get('federal')?.plugin).toBe(FederalPlugin);
     expect(byName.get('wa')?.plugin).toBe(WashingtonPlugin);
+    expect(byName.get('md')?.plugin).toBe(MarylandPlugin);
   });
 
   it('uses the canonical Washington API domain', async () => {
@@ -124,5 +126,12 @@ describe('loadConfig defaults', () => {
     const washington = config.sources.find((source) => source.name === 'wa');
 
     expect(washington?.baseUrl).toBe('https://wa.api.cg.a6lab.ai');
+  });
+
+  it('uses the deployed Maryland API URL', async () => {
+    const config = await loadConfig({ env: {}, cwd: '/nonexistent-dir-xyz' });
+    const maryland = config.sources.find((source) => source.name === 'md');
+
+    expect(maryland?.baseUrl).toBe('https://md-commongrants-api.brian-derfer.workers.dev');
   });
 });

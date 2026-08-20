@@ -69,12 +69,13 @@ which require a hosted server — see ADR 002).
    tools preserve plugin data carried in `customFields`, but do not yet
    automatically expose every plugin-specific search filter.
 
-   Federal, California, Pennsylvania, and Washington are bounded proofs of this plugin
+   Federal, California, Pennsylvania, Washington, and Maryland are bounded proofs of this plugin
    path. The MCP carries standalone consumer plugins whose custom-field names
    and value schemas are derived from `common-grants/ts-cg-grants-gov`,
    `agilesix/cg-api-ca/src/adapter/plugin.ts`, and
    `agilesix/cg-api-pa/src/adapter/plugin.ts`, and
-   `agilesix/cg-api-wa/src/adapter/plugin.ts`. They intentionally exclude native
+   `agilesix/cg-api-wa/src/adapter/plugin.ts`, and
+   `agilesix/cg-api-md/src/adapter/plugin.ts`. They intentionally exclude native
    source schemas and bidirectional transforms: those belong to the API
    adapters that convert provider data, while this MCP consumes
    already-normalized CommonGrants responses. Each plugin is attached only

@@ -231,9 +231,9 @@ visual layer lands.
   out SDK requests may continue in the background but remain bounded by the
   eight-item cap.
 - Unsafe URLs and raw upstream errors never reach the view.
-- Federal, Pennsylvania, California, and Washington candidates can appear in
+- Federal, Pennsylvania, California, Washington, and Maryland candidates can appear in
   one globally ranked shortlist.
-- A representative eight-item payload across all providers remains under the
+- A representative eight-item payload across the built-in providers remains under the
   measured 750 KB soft budget; otherwise the input cap is reduced.
 - CI, local app smoke tests, deployed preview smoke tests, and one agent
   usability pass succeed before merge.

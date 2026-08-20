@@ -47,7 +47,7 @@ export interface SourceConfig {
   baseUrl: string;
   /** Optional stable provider-page prefix; the encoded opportunity ID is appended. */
   opportunityPageBaseUrl?: string;
-  /** Optional auth. Omit for public sources (PA, CA, WA). */
+  /** Optional auth. Omit for public sources (PA, CA, WA, MD). */
   auth?: AuthConfig;
   /** Plugin that extends parsing and search behavior for this source. */
   plugin?: SourcePlugin;

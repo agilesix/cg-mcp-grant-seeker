@@ -146,7 +146,7 @@ Each change receives:
   and build configuration.
 - The standard and Skybridge servers discover semantically equivalent
   definitions for the named core tools.
-- Both servers expose federal, Pennsylvania, California, and Washington.
+- Both servers expose federal, Pennsylvania, California, Washington, and Maryland.
 - No app-only tool, view, React component, or visual theme is included.
 - CI, production build, local HTTP smoke test, and stdio tests pass.
 - The deployed preview smoke test reaches a Worker-backed source as well as
