@@ -132,6 +132,6 @@ describe('loadConfig defaults', () => {
     const config = await loadConfig({ env: {}, cwd: '/nonexistent-dir-xyz' });
     const maryland = config.sources.find((source) => source.name === 'md');
 
-    expect(maryland?.baseUrl).toBe('https://md-commongrants-api.brian-derfer.workers.dev');
+    expect(maryland?.baseUrl).toBe('https://md.api.cg.a6lab.ai');
   });
 });

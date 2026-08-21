@@ -42,7 +42,7 @@ export function defaultSources(federalApiToken?: string): SourceConfig[] {
     {
       name: 'md',
       label: 'Maryland Community Compass',
-      baseUrl: 'https://md-commongrants-api.brian-derfer.workers.dev',
+      baseUrl: 'https://md.api.cg.a6lab.ai',
       plugin: MarylandPlugin,
     },
   ];
