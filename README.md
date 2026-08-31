@@ -7,10 +7,10 @@ them in plain language, right inside Claude or ChatGPT.
      Claude: type a search, get labeled cross-source results, open the shortlist,
      click into an opportunity's details. See docs/media/README.md for specs. -->
 
-Instead of visiting each grantmaker's website and learning each one's search
-form, you describe what you're looking for — _"find workforce development grants
-closing in the next 90 days"_ — and the assistant searches every source at once,
-then hands you a ranked shortlist you can click through.
+Instead of visiting each grant portal, running multiple searches, and manually
+combining the results, you describe what you're looking for — _"find workforce 
+development grants closing in the next 90 days"_ — and the assistant searches 
+every source at once, then hands you a ranked shortlist you can click through.
 
 ## What's included
 
