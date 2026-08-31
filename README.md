@@ -1,169 +1,128 @@
-# CommonGrants Grant Seeker (MCP server)
+# CommonGrants MCP App
 
-An [MCP](https://modelcontextprotocol.io/) server that searches grant
-opportunities across multiple [CommonGrants](https://commongrants.org)-compliant
-APIs from a single set of tools. Ask an MCP client (Claude, ChatGPT, the MCP
-Inspector, …) to _"find workforce development grants"_ and it fans out across
-every registered source and returns combined, labeled results.
+Find grant opportunities across federal and state funding sources by asking for
+them in plain language, right inside Claude or ChatGPT.
 
-Ships with five sources out of the box:
+<p align="center">
+  <img src="docs/media/CommonGrants-shortlist-screenshot.png" width="640"
+       alt="The CommonGrants app in Claude, showing an opportunity shortlist of eight ranked Maryland education grants. Each entry lists its source, award range, and application deadline, above a summary of the filters and sort that produced the list." />
+  <br />
+  <em>The shortlist the assistant hands back after a few rounds of searching.</em>
+</p>
 
-| Source                              | URL                              | Auth                          |
-| ----------------------------------- | -------------------------------- | ----------------------------- |
-| **federal** — Simpler.Grants.gov    | `https://api.simpler.grants.gov` | API key (`FEDERAL_API_TOKEN`) |
-| **pa** — Pennsylvania               | `https://pa.api.cg.a6lab.ai`     | none                          |
-| **ca** — California                 | `https://ca.api.cg.a6lab.ai`     | none                          |
-| **wa** — Washington FundHub         | `https://wa.api.cg.a6lab.ai`     | none                          |
-| **md** — Maryland Community Compass | `https://md.api.cg.a6lab.ai`     | none                          |
+<!-- TODO(#55): A recording of the app in use — type a search, get labeled
+     cross-source results, open the shortlist, click into an opportunity's
+     details — would show the flow better than this still.
+     See docs/media/README.md for specs. -->
 
-Because they all speak CommonGrants, the same tools work against any additional
-source you register.
+Instead of visiting each grant portal, running multiple searches, and manually
+combining the results, you describe what you're looking for — _"find workforce
+development grants closing in the next 90 days"_ — and the assistant searches
+every source at once, then hands you a ranked shortlist you can click through.
 
-## Tools
+## What's included
 
-| Tool                   | What it does                                                          |
-| ---------------------- | --------------------------------------------------------------------- |
-| `list_grant_sources`   | Lists the registered CommonGrants sources                             |
-| `search_opportunities` | Searches bounded pages from one source or fans out across all sources |
-| `get_opportunity`      | Fetches the complete SDK-validated opportunity from a named source    |
+The app searches these funding sources:
 
-The hosted MCP App also exposes `present_opportunity_shortlist`. An assistant
-uses the three headless tools for iterative research, then automatically calls
-the presentation tool once per completed shortlist revision without requiring
-the user to know about or request the shortlist. The host may still ask the
-user for permission before running the tool. A successful call produces one
-stable, globally ranked review surface instead of attaching transient UI to
-every search; a denied or failed call falls back to a concise plain-text
-shortlist. The stdio server remains headless.
+| Source                           | What it covers                                        |
+| -------------------------------- | ----------------------------------------------------- |
+| **Simpler.Grants.gov**           | Federal grant opportunities from U.S. agencies        |
+| **Pennsylvania**                 | State grant opportunities from the Commonwealth of PA |
+| **California**                   | State grant opportunities from California             |
+| **Washington — FundHub**         | State grant opportunities from Washington             |
+| **Maryland — Community Compass** | State grant opportunities from Maryland               |
 
-All tools are read-only and carry the MCP annotations (`readOnlyHint`,
-`openWorldHint`) the Claude and OpenAI marketplaces require.
+Results are always labeled with the source they came from, and every
+opportunity links back to the grantmaker's own page so you can verify details
+and apply.
 
-## Quick start (local, stdio)
+All of this data is public, so there's nothing to sign up for and no account to
+connect — you add the app once and start searching.
 
-```bash
-corepack enable
-pnpm install
+## Quickstart
 
-export FEDERAL_API_TOKEN="your-simpler-grants-key"   # optional; PA + CA + WA + MD are public
-pnpm run start:stdio
-```
-
-Then connect it to a client — see [DEVELOPMENT.md](DEVELOPMENT.md) for the Claude
-Desktop config and the MCP Inspector. A single-file, copy-paste demo also lives
-outside this repo for zero-setup demos.
-
-## Configuration
-
-The default registry (federal/pa/ca/wa/md) is defined in
-[`src/config/defaults.ts`](src/config/defaults.ts). To add your own sources or
-supply your own credentials, create a `commongrants-mcp.config.ts` in your
-working directory (or point `CG_MCP_CONFIG` at one):
-
-```ts
-import { defineConfig } from '@common-grants/mcp-grant-seeker/config';
-
-export default defineConfig({
-  sources: [
-    { name: 'ca', label: 'California', baseUrl: 'https://ca.api.cg.a6lab.ai' },
-    {
-      name: 'my-foundation',
-      label: 'My Foundation',
-      baseUrl: 'https://grants.example.org',
-      auth: { type: 'bearer', token: process.env.MY_FOUNDATION_TOKEN },
-    },
-  ],
-});
-```
-
-See [`examples/commongrants-mcp.config.ts`](examples/commongrants-mcp.config.ts)
-for the full annotated example.
-
-Each source may optionally provide an SDK `Plugin`. When present, the server
-constructs that source's client with `plugin.getClient()` so the plugin's
-compiled opportunity schema is used while parsing responses.
-
-Federal, California, Pennsylvania, Washington, and Maryland use small, standalone consumer plugins
-derived from their existing adapter custom-field contracts. The MCP does not
-copy provider-native transforms because all five APIs already return
-CommonGrants opportunities. Each local plugin can later be replaced wholesale
-by an import from a corrected published provider package. User-configured
-sources continue to use the base SDK client unless their configuration supplies
-a plugin. Consumer plugins omit static field descriptions because SDK 0.6
-otherwise repeats them in every result; descriptions should later be exposed
-once through a deduplicated field-definition surface. The federal consumer also
-declares the four custom search filters implemented by the Simpler adapter,
-although the current MCP search tool does not expose plugin filters yet.
-
-`isDefault` is reserved source configuration and has no routing effect today.
-Omitting `source` from `search_opportunities` fans out across every configured
-source, while `get_opportunity` always requires an explicit source. Do not rely
-on `isDefault` until default-source behavior is defined.
-
-## Architecture
+The app is hosted, so installing it means pointing your AI assistant at one URL:
 
 ```
-src/
-├── core/          # transport- & host-agnostic: ICommonGrantsClient seam,
-│   │              # SDK-backed client and lossless tool registration
-│   ├── client.ts  #   constructs and calls @common-grants/sdk clients
-│   ├── tools.ts   #   list_grant_sources / search_opportunities / get_opportunity
-│   ├── server.ts  #   createServer(sources) → standard MCP SDK server
-│   └── types.ts   #   SDK-derived domain types and the client seam
-├── app/           # host-neutral app tools, models, and components
-│   ├── tools/     #   final-shortlist definition and bounded hydration
-│   ├── models/    #   display projection and persistent-state rules
-│   ├── components/#   pure React components receiving props/callbacks
-│   └── hosts/
-│       └── skybridge/
-│           ├── server.ts  # adapts unchanged core tools to Skybridge
-│           └── views/     # Skybridge hooks-to-props container
-├── config/        # data-driven source registry (types, Zod schema,
-│                  # defineConfig, defaults, jiti loader)
-├── plugins/       # localized consumer plugins for built-in source extensions
-├── views/         # behavior-free shims required by Skybridge view scanning
-├── stdio.ts       # local entrypoint (Claude Desktop, Inspector, self-hosters)
-└── server.ts      # Skybridge HTTP entrypoint used by local and hosted runtimes
+https://mcp.cg.a6lab.ai/mcp
 ```
 
-The shared core depends on an `ICommonGrantsClient` interface rather than an SDK
-client directly. SDK client construction and network calls stay in `client.ts`;
-domain types and enumerations are derived from the installed SDK. Tool results
-preserve the opportunity fields returned by the SDK instead of maintaining a
-second MCP-specific projection. The app's structured shortlist also preserves
-complete opportunities while its human display selects a concise subset.
-Skybridge is isolated to the app host adapter, scanner shim, and thin HTTP
-entrypoint; the standard MCP core, presentation handler, display model, and
-pure components do not import it.
-The tool layer imports SDK schemas for its
-agent-facing output contract, so the boundary is intentionally narrow rather
-than absolute. See
-[docs/adr/001-architecture.md](docs/adr/001-architecture.md).
+### Claude
 
-## Hosting & marketplaces
+<!-- TODO(#55): Replace with docs/media/install-claude.gif — Settings →
+     Connectors → Add custom connector → paste URL → Add. -->
 
-Both the Claude Connectors Directory and the OpenAI Apps SDK require a **remote,
-HTTPS-hosted** server; a single hosted URL is submitted to both. Because grant
-search is public, read-only data, the hosted server holds one server-side
-federal key and needs **no per-user OAuth** — users connect with zero config.
-The stdio server is for local/self-hosted use. Skybridge packages the HTTP MCP
-entrypoint for local development and the remote Cloudflare Worker deployed at
-`https://mcp.cg.a6lab.ai/mcp`. See
-[docs/adr/002-hosting-and-distribution.md](docs/adr/002-hosting-and-distribution.md).
+1. Open Claude in your browser or desktop app.
+2. Go to **Settings → Connectors**.
+3. Click **Add custom connector**.
+4. Paste `https://mcp.cg.a6lab.ai/mcp` as the remote MCP server URL, give it a
+   name like _CommonGrants_, and click **Add**.
+5. Start a new chat and ask for grants. Claude will ask permission the first
+   time it uses the app.
 
-## Scripts
+Anthropic's step-by-step guide, including the extra steps a Team or Enterprise
+owner needs to take before members can add connectors:
+[Get started with custom connectors using remote MCP](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
 
-| Script                                 | Purpose                                          |
-| -------------------------------------- | ------------------------------------------------ |
-| `pnpm run start:stdio` / `dev:stdio`   | Run the headless stdio MCP server                |
-| `pnpm start` / `pnpm run dev`          | Run the Skybridge HTTP server and local devtools |
-| `pnpm test` / `pnpm run test:coverage` | Run unit tests                                   |
-| `pnpm run checks`                      | Lint + format + typecheck                        |
-| `pnpm run ci`                          | Full CI sequence (types + checks + build + test) |
-| `pnpm run dev:worker`                  | Run the built Cloudflare Worker locally          |
-| `pnpm run deploy`                      | Deploy the remote Cloudflare Worker              |
+### ChatGPT
 
-## Contributing
+<!-- TODO(#55): Replace with docs/media/install-chatgpt.gif — Settings →
+     enable Developer mode → Plugins → + → paste URL → create. -->
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
+ChatGPT calls these **apps**, and adding your own currently requires turning on
+developer mode first:
+
+1. In ChatGPT, go to **Settings → Security and login** and turn on
+   **Developer mode**.
+2. Go to **Settings → Plugins** and click **+**.
+3. Paste `https://mcp.cg.a6lab.ai/mcp` as the server URL and create the app.
+4. Start a new chat and ask for grants.
+
+OpenAI's guide:
+[Developer mode and MCP apps in ChatGPT](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt).
+
+> On a ChatGPT Business or Enterprise workspace, a workspace admin publishes the
+> app once (**Workspace Settings → Apps**) and everyone else finds it in their
+> app list — individual members don't need developer mode.
+
+### Other assistants
+
+Any tool that supports remote MCP servers can use the same URL. See
+[TECHNICAL.md](TECHNICAL.md) for running the app locally or connecting it to
+other clients.
+
+## Things to try
+
+Once it's connected, ask your assistant things like:
+
+- _"What federal grants are open for rural broadband?"_
+- _"Find workforce development grants in Pennsylvania closing in the next 90 days."_
+- _"Compare the eligibility requirements for the top three, and tell me which
+  ones a small nonprofit could actually apply for."_
+- _"Which of these have no cost-sharing requirement?"_
+
+The assistant searches, narrows things down over a few turns, and then presents
+a single shortlist you can review and expand.
+
+## Roadmap
+
+- **More data sources.** Any funder that publishes a
+  [CommonGrants](https://commongrants.org)-compliant API can be added without
+  changing the app, so the plan is to keep growing the list of participating
+  states and federal programs.
+- **Award data.** Today the app searches open _opportunities_. Adding historical
+  award data would let you see who has been funded before, at what amounts, and
+  by which programs — useful context for deciding whether an opportunity is
+  worth pursuing.
+
+Have a source you'd like to see added, or found something confusing? Please
+[open an issue](https://github.com/agilesix/cg-mcp-grant-seeker/issues).
+
+## Documentation
+
+- **[TECHNICAL.md](TECHNICAL.md)** — how the app works: tools, source
+  configuration, architecture, and hosting.
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** — running and deploying it yourself.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to contribute.
+
 Licensed under [MIT](LICENSE).
