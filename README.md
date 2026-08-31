@@ -3,9 +3,12 @@
 Find grant opportunities across federal and state funding sources by asking for
 them in plain language, right inside Claude or ChatGPT.
 
-![The CommonGrants app in Claude, showing an opportunity shortlist of eight ranked Maryland education grants. Each entry lists its source, award range, and application deadline, above a summary of the filters and sort that produced the list.](docs/media/CommonGrants-shortlist-screenshot.png)
-
-_The shortlist the assistant hands back after a few rounds of searching._
+<p align="center">
+  <img src="docs/media/CommonGrants-shortlist-screenshot.png" width="640"
+       alt="The CommonGrants app in Claude, showing an opportunity shortlist of eight ranked Maryland education grants. Each entry lists its source, award range, and application deadline, above a summary of the filters and sort that produced the list." />
+  <br />
+  <em>The shortlist the assistant hands back after a few rounds of searching.</em>
+</p>
 
 <!-- TODO(#55): A recording of the app in use — type a search, get labeled
      cross-source results, open the shortlist, click into an opportunity's
