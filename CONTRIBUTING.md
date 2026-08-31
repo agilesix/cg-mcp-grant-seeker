@@ -5,7 +5,8 @@ opportunities across CommonGrants-compliant APIs. It is designed to be both a
 usable tool and a reference for connecting an LLM client to the CommonGrants
 ecosystem.
 
-Before contributing, please read our [LICENSE](LICENSE) and [README](README.md).
+Before contributing, please read our [LICENSE](LICENSE), the [README](README.md),
+and the [technical overview](TECHNICAL.md).
 By submitting a contribution, you agree that your code is licensed under the MIT
 License (the license of this project).
 
