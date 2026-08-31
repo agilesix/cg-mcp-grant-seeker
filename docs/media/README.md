@@ -4,11 +4,19 @@ Screen recordings embedded in the [README](../../README.md). Each one replaces a
 `TODO(#55)` comment in the README, so search for that marker to find the exact
 insertion point.
 
-| File                  | Shows                                                                                                                                               |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `demo.gif`            | Using the app in Claude: type a natural-language search, get labeled cross-source results, open the shortlist, click into an opportunity's details. |
-| `install-claude.gif`  | Claude: **Settings → Connectors → Add custom connector**, paste the server URL, **Add**.                                                            |
-| `install-chatgpt.gif` | ChatGPT: enable **Developer mode**, **Settings → Plugins → +**, paste the server URL, create.                                                       |
+### In use
+
+| File                                    | Shows                                                                                                                         |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `CommonGrants-shortlist-screenshot.png` | The opportunity shortlist in Claude — ranked results with source, award range, and deadline. Embedded in the README overview. |
+
+### Still wanted
+
+| File                  | Shows                                                                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `demo.gif`            | The app in use: type a natural-language search, get labeled cross-source results, open the shortlist, click into an opportunity's details. Would replace the still above. |
+| `install-claude.gif`  | Claude: **Settings → Connectors → Add custom connector**, paste the server URL, **Add**.                                                                                  |
+| `install-chatgpt.gif` | ChatGPT: enable **Developer mode**, **Settings → Plugins → +**, paste the server URL, create.                                                                             |
 
 ## Recording guidelines
 

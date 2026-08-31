@@ -3,13 +3,18 @@
 Find grant opportunities across federal and state funding sources by asking for
 them in plain language, right inside Claude or ChatGPT.
 
-<!-- TODO(#55): Replace with docs/media/demo.gif — a recording of the app in
-     Claude: type a search, get labeled cross-source results, open the shortlist,
-     click into an opportunity's details. See docs/media/README.md for specs. -->
+![The CommonGrants app in Claude, showing an opportunity shortlist of eight ranked Maryland education grants. Each entry lists its source, award range, and application deadline, above a summary of the filters and sort that produced the list.](docs/media/CommonGrants-shortlist-screenshot.png)
+
+_The shortlist the assistant hands back after a few rounds of searching._
+
+<!-- TODO(#55): A recording of the app in use — type a search, get labeled
+     cross-source results, open the shortlist, click into an opportunity's
+     details — would show the flow better than this still.
+     See docs/media/README.md for specs. -->
 
 Instead of visiting each grant portal, running multiple searches, and manually
-combining the results, you describe what you're looking for — _"find workforce 
-development grants closing in the next 90 days"_ — and the assistant searches 
+combining the results, you describe what you're looking for — _"find workforce
+development grants closing in the next 90 days"_ — and the assistant searches
 every source at once, then hands you a ranked shortlist you can click through.
 
 ## What's included
