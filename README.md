@@ -36,10 +36,11 @@ Results are always labeled with the source they came from, and every
 opportunity links back to the grantmaker's own page so you can verify details
 and apply.
 
-For a normal shortlist, the assistant starts with one targeted search and then
-hands the selected references to the presentation tool, which loads their full
-details in parallel. It broadens the search or retrieves an individual record
-only when the initial results are insufficient.
+For a normal shortlist, the assistant starts with a focused search and evaluates
+whether the results provide enough relevant coverage. It expands the search only
+when the results are insufficient, ambiguous, or clearly incomplete, then hands
+the selected references to the presentation tool, which loads their full details
+in parallel.
 
 All of this data is public, so there's nothing to sign up for and no account to
 connect — you add the app once and start searching.

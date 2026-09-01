@@ -30,12 +30,14 @@ creating user-facing app frames.
 Their structured results remain complete for the corresponding SDK operation.
 The app does not narrow the data available to the assistant.
 
-The app host asks assistants to begin shortlist work with one targeted search.
-Because search rows preserve every provider field and the presentation tool
-hydrates selected records in parallel, the assistant should not run synonym
-searches, paginate, or fetch every candidate individually unless the first
-search is insufficient. This is execution guidance rather than a core-tool
-contract change.
+The app host asks assistants to begin shortlist work with a focused search and
+evaluate the relevance and coverage of its results. The assistant expands with
+alternative terms or pagination when results are insufficient, ambiguous, or
+clearly incomplete, while avoiding searches that substantially duplicate
+available results. Because search rows preserve every provider field and the
+presentation tool hydrates selected records in parallel, the assistant should
+not fetch every candidate individually. This is execution guidance rather than
+a core-tool contract change.
 
 ### 2. Add one explicit presentation tool
 

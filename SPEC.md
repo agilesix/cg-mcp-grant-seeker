@@ -90,9 +90,10 @@ Federal, California, Pennsylvania, Washington, and Maryland are bounded proofs o
 - `present_opportunity_shortlist` is app-only. It retrieves one to eight complete opportunities with
   bounded concurrency and per-candidate deadlines, then attaches the sole user-facing view after
   research is complete.
-- App-host instructions direct assistants to begin with one targeted search, avoid redundant synonym
-  searches and pagination when enough candidates are already available, and skip per-candidate detail
-  calls because the presentation tool performs bounded detail hydration itself.
+- App-host instructions direct assistants to begin with a focused search, expand only when current
+  results are insufficient, ambiguous, or clearly incomplete, and avoid substantially duplicative
+  searches. They also skip per-candidate detail calls because the presentation tool performs bounded
+  detail hydration itself.
 
 ## Non-Goals
 

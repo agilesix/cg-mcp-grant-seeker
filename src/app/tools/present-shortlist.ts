@@ -131,7 +131,8 @@ export const presentShortlistDefinition = {
   title: 'Present grant opportunity shortlist',
   description: [
     'After completed grant research produces one or more recommended opportunities, call this tool automatically to present the final ranked shortlist.',
-    'Call it as soon as a successful search provides enough relevant candidates; one targeted search is normally sufficient.',
+    'Call it as soon as the current search results provide enough relevant candidates.',
+    'Do not delay presentation for additional searches that are unlikely to materially improve relevance or coverage.',
     'Search results preserve provider fields needed for ranking, and this tool retrieves every selected opportunity in full.',
     'Do not call get_opportunity for each candidate before this tool unless a search result is missing information required for selection.',
     'Do not wait for the user to request the shortlist or offer it as a separate optional step.',
