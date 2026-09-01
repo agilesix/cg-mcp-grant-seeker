@@ -39,6 +39,11 @@ describe('Skybridge app boundary', () => {
 
     expect(client.getInstructions()).toBe(APP_SERVER_INSTRUCTIONS);
     expect(client.getInstructions()).toContain('automatically call present_opportunity_shortlist');
+    expect(client.getInstructions()).toContain('one targeted search_opportunities call');
+    expect(client.getInstructions()).toContain(
+      'Do not call get_opportunity merely to prepare a shortlist',
+    );
+    expect(client.getInstructions()).toContain('Do not repeat near-synonym searches');
     expect(client.getInstructions()).toContain('Do not wait for the user to request the shortlist');
     expect(client.getInstructions()).toContain('permission');
     expect(client.getInstructions()).toContain('plain-text shortlist instead');
@@ -222,6 +227,10 @@ describe('Skybridge app boundary', () => {
     );
     expect(presentationTool).toBeDefined();
     expect(presentationTool?.description).toContain('call this tool automatically');
+    expect(presentationTool?.description).toContain('one targeted search is normally sufficient');
+    expect(presentationTool?.description).toContain(
+      'Do not call get_opportunity for each candidate',
+    );
     expect(presentationTool?.description).toContain(
       'Do not wait for the user to request the shortlist',
     );

@@ -8,7 +8,12 @@ import type { z } from 'zod3';
 import { registerSkybridgeAppTools } from './register-app-tools.js';
 
 export const APP_SERVER_INSTRUCTIONS = [
-  'Use the grant discovery tools to research and evaluate opportunities.',
+  'Use the grant discovery tools efficiently to research and evaluate opportunities.',
+  'For a shortlist request, start with one targeted search_opportunities call using a limit large enough for the requested shortlist; omitting source already searches every configured source in parallel.',
+  'A successful search result preserves every field returned by the provider and is normally sufficient to rank candidates.',
+  'Do not repeat near-synonym searches, paginate, or broaden the query unless the first search returns too few relevant candidates or the user requests exhaustive research.',
+  'Do not call get_opportunity merely to prepare a shortlist: present_opportunity_shortlist retrieves every selected opportunity in full.',
+  'Use get_opportunity only when answering a detail question about one opportunity or when a search result lacks information required to decide whether it belongs in the shortlist.',
   'When completed research produces one or more recommended opportunities, automatically call present_opportunity_shortlist with the final ranked candidates.',
   'Do not wait for the user to request the shortlist or offer it as a separate optional step.',
   'The host may ask the user for permission to run the presentation tool; that approval flow is sufficient and should not prevent the call.',
