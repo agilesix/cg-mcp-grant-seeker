@@ -91,9 +91,10 @@ Federal, California, Pennsylvania, Washington, and Maryland are bounded proofs o
   bounded concurrency and per-candidate deadlines, then attaches the sole user-facing view after
   research is complete.
 - App-host instructions direct assistants to begin with a focused search, expand only when current
-  results are insufficient, ambiguous, or clearly incomplete, and avoid substantially duplicative
-  searches. They also skip per-candidate detail calls because the presentation tool performs bounded
-  detail hydration itself.
+  results are insufficient, ambiguous, or clearly incomplete, treat five or more clearly relevant
+  candidates as ordinarily sufficient for a non-exhaustive shortlist, and avoid substantially
+  duplicative searches. They also skip per-candidate detail calls because the presentation tool
+  performs bounded detail hydration itself.
 
 ## Non-Goals
 

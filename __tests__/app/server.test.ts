@@ -44,6 +44,7 @@ describe('Skybridge app boundary', () => {
       'Do not call get_opportunity merely to prepare a shortlist',
     );
     expect(client.getInstructions()).toContain('insufficient, ambiguous, or clearly incomplete');
+    expect(client.getInstructions()).toContain('five or more clearly relevant candidates');
     expect(client.getInstructions()).toContain('substantially duplicate results');
     expect(client.getInstructions()).toContain('Do not wait for the user to request the shortlist');
     expect(client.getInstructions()).toContain('permission');
@@ -231,6 +232,7 @@ describe('Skybridge app boundary', () => {
     expect(presentationTool?.description).toContain(
       'current search results provide enough relevant candidates',
     );
+    expect(presentationTool?.description).toContain('five or more clearly relevant candidates');
     expect(presentationTool?.description).toContain('materially improve relevance or coverage');
     expect(presentationTool?.description).toContain(
       'Do not call get_opportunity for each candidate',

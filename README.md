@@ -37,10 +37,11 @@ opportunity links back to the grantmaker's own page so you can verify details
 and apply.
 
 For a normal shortlist, the assistant starts with a focused search and evaluates
-whether the results provide enough relevant coverage. It expands the search only
-when the results are insufficient, ambiguous, or clearly incomplete, then hands
-the selected references to the presentation tool, which loads their full details
-in parallel.
+whether the results provide enough relevant coverage. Five or more clearly
+relevant candidates are ordinarily enough for a non-exhaustive shortlist. It
+expands the search only when the results are insufficient, ambiguous, or clearly
+incomplete, then hands the selected references to the presentation tool, which
+loads their full details in parallel.
 
 All of this data is public, so there's nothing to sign up for and no account to
 connect — you add the app once and start searching.

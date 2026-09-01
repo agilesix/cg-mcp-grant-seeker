@@ -11,6 +11,7 @@ export const APP_SERVER_INSTRUCTIONS = [
   'Use the grant discovery tools efficiently to research and evaluate opportunities.',
   'For a shortlist request, begin with a focused search_opportunities call using a limit large enough for the requested shortlist; omitting source already searches every configured source in parallel.',
   'Evaluate the relevance and coverage of current results before searching again.',
+  'For a non-exhaustive shortlist, five or more clearly relevant candidates ordinarily provide enough coverage; present them unless a targeted follow-up is likely to materially improve result quality.',
   'Expand with alternative terms or pagination when current results are insufficient, ambiguous, or clearly incomplete, or when the user requests exhaustive research.',
   'Avoid additional searches that substantially duplicate results already available.',
   'Search results preserve every field returned by the provider and can be ranked directly when they contain enough relevant candidates.',
