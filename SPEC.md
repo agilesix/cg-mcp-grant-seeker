@@ -30,8 +30,9 @@ Core actions:
 
 1. The user describes a funding need conversationally.
 2. The assistant discovers available sources and searches one or several of them.
-3. The assistant preserves each result's source and ID, retrieves promising details, and explains
-   findings in the conversation.
+3. The assistant preserves each result's source and ID and ranks candidates from the complete search
+   rows. It retrieves an individual detail only when the search row lacks information required for
+   selection.
 4. In an app-capable host, the assistant calls `present_opportunity_shortlist` once per completed
    shortlist revision with its strongest source-scoped candidates.
 5. The user reviews one stable shortlist, opens details, and follows provider links without creating
@@ -89,6 +90,11 @@ Federal, California, Pennsylvania, Washington, and Maryland are bounded proofs o
 - `present_opportunity_shortlist` is app-only. It retrieves one to eight complete opportunities with
   bounded concurrency and per-candidate deadlines, then attaches the sole user-facing view after
   research is complete.
+- App-host instructions direct assistants to begin with a focused search, expand only when current
+  results are insufficient, ambiguous, or clearly incomplete, treat five or more clearly relevant
+  candidates as ordinarily sufficient for a non-exhaustive shortlist, and avoid substantially
+  duplicative searches. They also skip per-candidate detail calls because the presentation tool
+  performs bounded detail hydration itself.
 
 ## Non-Goals
 
