@@ -46,15 +46,16 @@ export class SdkCommonGrantsClient implements ICommonGrantsClient {
   }
 
   searchOpportunities(params: SearchParams): Promise<SearchResult> {
-    const { query, statuses, page = 1, pageSize } = params;
+    const { query, statuses, page, pageSize, maxItems } = params;
     // Pass page/pageSize explicitly: search() auto-paginates up to maxItems
     // (default 1000) when they're omitted, which would fetch every result.
     return this.opportunities.search({
       query,
       // Values are validated to the SDK's status enum at the tool boundary.
       statuses: statuses as unknown as SdkSearchArgs['statuses'],
-      page,
+      page: page ?? (maxItems === undefined ? 1 : undefined),
       pageSize,
+      ...(maxItems === undefined ? {} : { maxItems }),
       onParseError: 'collect',
     });
   }

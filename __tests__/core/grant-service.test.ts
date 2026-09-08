@@ -20,6 +20,34 @@ function source(name: string): ICommonGrantsClient {
 }
 
 describe('grant service without an MCP host', () => {
+  it('keeps collection defaults independent from MCP search defaults', async () => {
+    const pa = source('pa');
+    const service = createGrantService([pa]);
+    await expect(service.searchCollection({ source: 'pa' })).resolves.toEqual({ items: [] });
+    expect(pa.searchOpportunities).toHaveBeenCalledWith({
+      query: undefined,
+      statuses: undefined,
+      pageSize: 100,
+      maxItems: 1000,
+    });
+    await service.searchCollection({ source: 'pa', statuses: ['closed'], pageSize: 50 });
+    expect(pa.searchOpportunities).toHaveBeenLastCalledWith({
+      query: undefined,
+      statuses: ['closed'],
+      pageSize: 50,
+      maxItems: 1000,
+    });
+  });
+
+  it('validates collection bounds and propagates upstream failures', async () => {
+    const pa = source('pa');
+    const service = createGrantService([pa]);
+    await expect(service.searchCollection({ source: 'pa', pageSize: 101 })).rejects.toThrow();
+    await expect(service.searchCollection({ source: 'missing' })).rejects.toThrow();
+    expect(pa.searchOpportunities).not.toHaveBeenCalled();
+    vi.mocked(pa.searchOpportunities).mockRejectedValue(new Error('Upstream returned 401'));
+    await expect(service.searchCollection({ source: 'pa' })).rejects.toThrow('401');
+  });
   it('applies search defaults and preserves partial source failures', async () => {
     const pa = source('pa');
     const md = source('md');

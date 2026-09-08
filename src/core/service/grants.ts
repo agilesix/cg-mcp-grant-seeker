@@ -79,6 +79,32 @@ export function createGrantService(clients: ICommonGrantsClient[]) {
   return {
     schemas,
     listSources: () => ({ sources: clients.map(sourceValue) }),
+    /** Website collection search, before local filtering/sorting/pagination.
+     * Separate from the MCP search contract: no default status restriction.
+     */
+    async searchCollection(input: {
+      source: string;
+      query?: string;
+      statuses?: ('open' | 'forecasted' | 'closed' | 'custom')[];
+      pageSize?: number;
+    }) {
+      const params = z
+        .object({
+          source: z.enum(names),
+          query: z.string().optional(),
+          statuses: z.array(z.enum(['open', 'forecasted', 'closed', 'custom'])).optional(),
+          pageSize: z.number().int().min(1).max(100).default(100),
+        })
+        .parse(input);
+      const result = await byName.get(params.source)!.searchOpportunities({
+        query: params.query,
+        statuses: params.statuses,
+        pageSize: params.pageSize,
+        maxItems: 1000,
+      });
+      // Errors propagate so callers do not mistake an unavailable source for no results.
+      return { items: result.items.slice(0, 1000).map(wireOpportunity) };
+    },
     async search(input: z.input<typeof schemas.search>) {
       const { query, statuses, source, page, limit } = schemas.search.parse(input);
       const targets = source ? [byName.get(source)!] : clients;
