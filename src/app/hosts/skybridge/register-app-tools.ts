@@ -1,10 +1,9 @@
 import type { McpServer as SkybridgeMcpServer } from 'skybridge/server';
 import type { z } from 'zod3';
 import type { ICommonGrantsClient } from '../../../core/types.js';
+import { createGrantService } from '../../../core/service/grants.js';
 import {
-  createPresentShortlistInputSchema,
   PRESENT_SHORTLIST_TOOL_NAME,
-  presentOpportunityShortlist,
   presentShortlistDefinition,
   presentShortlistOutputSchema,
 } from '../../tools/present-shortlist.js';
@@ -13,8 +12,8 @@ export function registerSkybridgeAppTools(
   server: SkybridgeMcpServer,
   clients: ICommonGrantsClient[],
 ): void {
-  const sourceNames = clients.map((client) => client.name) as [string, ...string[]];
-  const inputSchema = createPresentShortlistInputSchema(sourceNames);
+  const service = createGrantService(clients);
+  const inputSchema = service.schemas.shortlist.shape;
   type HandlerInput = z.output<z.ZodObject<typeof inputSchema>>;
   const register = server.registerTool.bind(server) as unknown as (
     definition: Record<string, unknown>,
@@ -35,7 +34,7 @@ export function registerSkybridgeAppTools(
       },
     },
     async (input) => {
-      const structuredContent = await presentOpportunityShortlist(input, clients);
+      const structuredContent = await service.assembleShortlist(input);
       return {
         content: [],
         structuredContent,
