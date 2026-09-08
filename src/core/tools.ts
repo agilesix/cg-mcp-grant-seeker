@@ -1,32 +1,9 @@
 import { z } from 'zod3';
-import type { ICommonGrantsClient, SearchParams, SearchResult } from './types.js';
-import { OpportunityWireSchema, wireOpportunity } from './wire.js';
+import type { ICommonGrantsClient } from './types.js';
+import { OpportunityWireSchema } from './wire.js';
 
-/** The base CommonGrants opportunity statuses (see {@link OpportunityStatus}). */
-const STATUS_VALUES = ['open', 'forecasted', 'closed', 'custom'] as const;
-
-const sourceSchema = {
-  name: z.string(),
-  label: z.string(),
-};
-
-const sourceObjectSchema = z.object(sourceSchema);
-
-const searchResultSchema = z.object({
-  source: sourceObjectSchema,
-  status: z.enum(['success', 'empty', 'error']),
-  opportunities: z.array(OpportunityWireSchema),
-  total: z.number().int().nonnegative().nullable(),
-  page: z.number().int().positive(),
-  hasNextPage: z.boolean().nullable(),
-  nextPage: z.number().int().positive().nullable(),
-  omittedInvalidRows: z.number().int().nonnegative(),
-  error: z.string().nullable(),
-});
-
-type SearchOutcome = z.input<typeof searchResultSchema>;
-type Source = z.infer<typeof sourceObjectSchema>;
-
+import { createGrantService } from './service/grants.js';
+import { sourceObjectSchema, searchResultSchema } from './service/contracts.js';
 type CoreToolDefinition<TInputSchema extends z.ZodRawShape> = Record<string, unknown> & {
   inputSchema: TInputSchema;
 };
@@ -41,67 +18,6 @@ export type CoreToolRegistrar = <TInputSchema extends z.ZodRawShape>(
   definition: CoreToolDefinition<TInputSchema>,
   handler: (input: z.output<z.ZodObject<TInputSchema>>) => Promise<unknown>,
 ) => void;
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-function sourceValue(client: ICommonGrantsClient): Source {
-  return { name: client.name, label: client.label };
-}
-
-function paginationValue(result: SearchResult, requestedPage: number) {
-  const { page, totalItems, totalPages } = result.paginationInfo;
-  if (
-    page !== requestedPage ||
-    !Number.isInteger(page) ||
-    page < 1 ||
-    (totalItems != null && (!Number.isInteger(totalItems) || totalItems < 0)) ||
-    (totalPages != null && (!Number.isInteger(totalPages) || totalPages < 0))
-  ) {
-    throw new Error('Invalid pagination metadata returned by source');
-  }
-  const hasNextPage = totalPages == null ? null : page < totalPages;
-  return {
-    page,
-    hasNextPage,
-    nextPage: hasNextPage ? page + 1 : null,
-  };
-}
-
-async function searchOne(
-  client: ICommonGrantsClient,
-  params: SearchParams,
-): Promise<SearchOutcome> {
-  try {
-    const result = await client.searchOpportunities(params);
-    const items = result.items ?? [];
-    const pagination = paginationValue(result, params.page ?? 1);
-    const total = result.paginationInfo.totalItems ?? null;
-    return {
-      source: sourceValue(client),
-      status: items.length === 0 ? 'empty' : 'success',
-      opportunities: items.map(wireOpportunity),
-      total,
-      ...pagination,
-      omittedInvalidRows: result.errors?.length ?? 0,
-      error: null,
-    };
-  } catch (err) {
-    const message = errorMessage(err);
-    return {
-      source: sourceValue(client),
-      status: 'error',
-      opportunities: [],
-      total: null,
-      page: params.page ?? 1,
-      hasNextPage: null,
-      nextPage: null,
-      omittedInvalidRows: 0,
-      error: message,
-    };
-  }
-}
 
 /**
  * Registers all grant tools on an McpServer. The set of sources is data-driven:
@@ -119,9 +35,7 @@ export function registerTools(
     throw new Error('registerTools requires at least one configured source.');
   }
 
-  const byName = new Map(clients.map((c) => [c.name, c]));
-  const names = clients.map((c) => c.name) as [string, ...string[]];
-  const sourceEnum = z.enum(names);
+  const service = createGrantService(clients);
 
   registerTool(
     'list_grant_sources',
@@ -136,7 +50,7 @@ export function registerTools(
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () => {
-      const structuredContent = { sources: clients.map(sourceValue) };
+      const structuredContent = { sources: service.listSources().sources };
       return {
         content: [],
         structuredContent,
@@ -160,35 +74,15 @@ export function registerTools(
         '`omittedInvalidRows` counts malformed rows removed from the page without exposing them.',
         'Pagination is not a snapshot, so changing source data can cause duplicates or omissions.',
       ].join('\n'),
-      inputSchema: {
-        query: z
-          .string()
-          .optional()
-          .describe("Full-text search query, e.g. 'workforce development'"),
-        statuses: z
-          .array(z.enum(STATUS_VALUES))
-          .default(['open', 'forecasted'])
-          .describe('Filter by opportunity status'),
-        source: sourceEnum.optional().describe('Which source to query. Omit to search all.'),
-        page: z.number().int().min(1).default(1).describe('1-based results page'),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(25)
-          .default(5)
-          .describe('Requested page size per source'),
-      },
+      inputSchema: service.schemas.search.shape,
       outputSchema: {
         sources: z.array(searchResultSchema),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ query, statuses, source, page, limit }) => {
-      const targets = source ? [byName.get(source)!] : clients;
-      const params: SearchParams = { query, statuses, page, pageSize: limit };
-      const results = await Promise.all(targets.map((client) => searchOne(client, params)));
-      const structuredContent = { sources: results };
+    async (input) => {
+      const structuredContent = await service.search(input);
+      const results = structuredContent.sources;
       return {
         content: [],
         structuredContent,
@@ -210,10 +104,7 @@ export function registerTools(
         'horizon for a rolling or continuous program rather than a fixed application cutoff.',
         'Event times are timezone-unspecified. Verify ambiguous deadlines at `source`.',
       ].join(' '),
-      inputSchema: {
-        id: z.string().describe('The opportunity ID'),
-        source: sourceEnum.describe('Which source the opportunity belongs to'),
-      },
+      inputSchema: service.schemas.get.shape,
       outputSchema: {
         source: sourceObjectSchema,
         status: z.enum(['success', 'error']),
@@ -222,32 +113,13 @@ export function registerTools(
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    async ({ id, source }) => {
-      const client = byName.get(source)!;
-      try {
-        const opp = await client.getOpportunity(id);
-        return {
-          content: [],
-          structuredContent: {
-            source: sourceValue(client),
-            status: 'success' as const,
-            opportunity: wireOpportunity(opp),
-            error: null,
-          },
-        };
-      } catch (err) {
-        const message = errorMessage(err);
-        return {
-          content: [],
-          structuredContent: {
-            source: sourceValue(client),
-            status: 'error' as const,
-            opportunity: null,
-            error: message,
-          },
-          isError: true,
-        };
-      }
+    async (input) => {
+      const structuredContent = await service.getOpportunity(input);
+      return {
+        content: [],
+        structuredContent,
+        ...(structuredContent.status === 'error' ? { isError: true } : {}),
+      };
     },
   );
 }

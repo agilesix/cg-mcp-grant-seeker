@@ -22,6 +22,9 @@ every source at once, then hands you a ranked shortlist you can click through.
 
 ## What's included
 
+Developers can reuse the [shared grant service](docs/shared-grant-service.md) for
+search, retrieval, and shortlist assembly without starting an MCP host.
+
 The app searches these funding sources:
 
 | Source                           | What it covers                                        |

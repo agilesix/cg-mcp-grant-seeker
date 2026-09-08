@@ -99,6 +99,7 @@ export default tseslint.config(
   // other src/** directories.
   {
     files: ['src/core/**/*.ts'],
+    ignores: ['src/core/service/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -114,6 +115,34 @@ export default tseslint.config(
               group: ['../*', '../../*', '../../../*'],
               message:
                 'src/core/ may not import from any other src/** directory. It only depends on zod, @common-grants/sdk, and @modelcontextprotocol/sdk.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/core/service/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '../*',
+                '../../*',
+                '../../../*',
+                '!../types.js',
+                '!../wire.js',
+                '!../client.js',
+              ],
+              message:
+                'The grant service may only import shared core clients, types, and serialization outside its own directory.',
+            },
+            {
+              group: ['skybridge', 'skybridge/*', 'react', 'react/*', '@modelcontextprotocol/*'],
+              message: 'The grant service must remain independent of MCP and UI hosts.',
             },
           ],
         },
