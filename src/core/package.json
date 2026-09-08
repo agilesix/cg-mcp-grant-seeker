@@ -1,0 +1,21 @@
+{
+  "name": "@common-grants/grant-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Server-side grant operations shared by the MCP app and website",
+  "license": "MIT",
+  "exports": {
+    ".": "./service/index.ts"
+  },
+  "files": [
+    "service",
+    "client.ts",
+    "types.ts",
+    "wire.ts"
+  ],
+  "dependencies": {
+    "@common-grants/sdk": "~0.6.1",
+    "zod3": "npm:zod@3.25.76"
+  }
+}

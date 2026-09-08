@@ -64,6 +64,8 @@ export interface SearchParams {
   statuses?: string[];
   page?: number;
   pageSize?: number;
+  /** Server-side collection search only; omit page to allow bounded auto-pagination. */
+  maxItems?: number;
 }
 
 /**

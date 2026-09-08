@@ -36,5 +36,14 @@ describe('SdkCommonGrantsClient', () => {
       onParseError: 'collect',
     });
     expect(get).toHaveBeenCalledWith('ca-1');
+    await client.searchOpportunities({ pageSize: 100, maxItems: 1000 });
+    expect(search).toHaveBeenLastCalledWith({
+      query: undefined,
+      statuses: undefined,
+      page: undefined,
+      pageSize: 100,
+      maxItems: 1000,
+      onParseError: 'collect',
+    });
   });
 });
